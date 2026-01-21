@@ -1,0 +1,50 @@
+✦ 好的，这是一段总结今天工作进度的内容。当我下次读取这段内容时，就能快速了解项目的当前状态和接下来的工作重点。
+
+  ---
+
+  今日工作总结与后续任务简报
+
+  整体目标回顾：
+  今日的主要目标是对项目进行一次彻底的架构重构，以支持未来集成 NPC AI 和网络对战功能，并为实现《核心规则3.0.txt》中的完整游戏逻辑打下坚实基础。
+
+  已完成的工作：
+
+   1. 架构设计与引擎核心构建：
+       * 创建了 assets/Scripts/Engine 目录，用于存放纯游戏逻辑代码，与 Cocos Creator 视图层完全解耦。
+       * 定义了所有核心数据结构：interfaces.ts (IGameState, IPlayerState, ICardState 等)，确保数据驱动。
+       * 实现了全局事件总线 EventBus.ts，用于解耦各系统间的通信。
+       * 建立了基于状态机的回合流程管理 (GameFSM.ts)，替换了旧的线性回合逻辑。
+       * 将旧的 Battle.ts 逻辑抽离并重构为 CombatSystem.ts，使其操作 IGameState 数据。
+       * 创建了 GameStateFactory.ts，负责初始化完整的 IGameState。
+       * 创建了 DeckSystem.ts，用于管理牌库抽卡逻辑。
+       * 实现了一个基础的 NPC AI 控制器 (AIController.ts)，可根据 IGameState 生成 IAction。
+       * 将 CardDatabase 和牌库定义从 assets/Scripts/Data/CardData.ts 移动并整合到 assets/Scripts/Engine/Data/CardData.ts。
+       * 删除了旧的 assets/Scripts/Constants.ts 文件，其功能由 Engine/interfaces.ts 取代。
+
+   2. 视图层组件重构：
+       * 将 Actor.ts、Card.ts、Player.ts 和 Slot.ts 等 Cocos 组件彻底改造为纯粹的“视图”层。它们现在只负责显示由引擎提供的数据，并播放动画，不再包含游戏逻辑。
+       * 将旧的 Match.ts 组件移除，并创建了新的 GameManager.ts。GameManager 作为主控制器，负责连接引擎与视图，监听引擎事件并更新视图，以及接收用户输入并派发 IAction 给引擎。
+
+   3. 核心规则文档更新：
+       * 更新了 F:\MyGame\CardgameTest\核心规则3.0.txt，补充了关于“单人游戏模式 (AI 对战)”、“回合时间限制 (30秒)”以及“牌库调整时机”的详细说明。
+
+  当前状态与未解决问题：
+
+   * 架构已搭建完成：所有核心组件已重构或新建，但它们之间还没有完全调试和连接。
+   * 编辑器配置待完成：用户需要在 Cocos Creator 编辑器中完成场景节点的更新和属性关联。这是一个关键步骤，直接影响游戏的运行。
+   * 编译错误修复：已修复 GameStateFactory.ts 中的 import 路径错误。
+   * 游戏流程尚未完全实现：GameFSM 中的状态转换逻辑，以及 GameManager 对 FSM 状态的响应（如牌库调整UI、动画播放、计时器）等尚未完全实现，目前仅是框架。
+
+  下一步工作重点（高优先级）：
+
+   1. 用户操作：指导用户在 Cocos Creator 编辑器中，完成 GameManager 组件的替换、属性关联以及 Player 组件的配置验证。
+   2. 全面连接与调试：
+       * 完善 `GameFSM` 状态逻辑：使状态机能够暂停并等待 IAction，而不是立即自动转换。
+       * 实现 `GameManager` 的核心逻辑：
+           * 卡牌视图的动态创建与管理（对象池）。
+           * FSM 状态的驱动与事件响应 (例如，当 Rotation 阶段到来时，驱动 AI 或等待玩家输入，并派发 CONFIRM_ROTATION IAction)。
+           * 实现战斗动画的顺序播放与事件触发。
+       * 引入回合计时器：在 GameManager 或 GameFSM 中实现每回合30秒的计时逻辑。
+   3. 逐步实现《核心规则3.0.txt》中的未实现功能：在核心框架稳定运行后，逐步增加英雄技能、卡牌技能、资源管理、复杂攻击目标判定等功能。
+
+  下一次启动时，我将从“用户在 Cocos Creator 编辑器中完成场景配置”这一前提开始，并着手进行“全面连接与调试”的工作。
