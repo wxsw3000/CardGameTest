@@ -1,0 +1,36 @@
+{
+  "style": {
+    "art_style": "high-fantasy digital illustration",
+    "rendering_quality": "ultra-detailed, cinematic, hyper-realistic with painterly touch",
+    "mood": "ethereal, serene, magical, slightly dramatic",
+    "color_palette": {
+      "dominant": ["emerald green", "gold", "warm brown"],
+      "accent": ["soft white", "forest green", "amber glow"],
+      "temperature": "warm, sun-kissed"
+    },
+    "lighting": {
+      "type": "backlit / rim lighting",
+      "quality": "soft diffused glow",
+      "source": "natural sunlight filtering through foliage",
+      "effects": [
+        "volumetric light rays",
+        "bokeh particles (golden orbs)",
+        "lens flare (subtle)"
+      ]
+    },
+    "composition": {
+      "framing": "dynamic close-up or medium shot",
+      "angle": "slightly low angle for heroic feel",
+      "depth_of_field": "shallow (foreground sharp, background blurred)",
+      "background": "soft-focus natural environment (e.g., forest, meadow) with bokeh"
+    },
+    "texture_and_detail": {
+      "skin": "smooth with subtle subsurface scattering",
+      "hair": "flowing, voluminous, wind-swept, detailed strands",
+      "fabric": "rich textures (silk, velvet, leather), visible folds and embroidery",
+      "metal": "ornate, aged gold or bronze, with engraved patterns",
+      "environment": "lush, organic, slightly misty"
+    },
+    "atmosphere": "magical realism, dreamlike, immersive, storybook quality"
+  }
+}

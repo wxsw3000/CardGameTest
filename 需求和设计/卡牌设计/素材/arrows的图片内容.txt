@@ -1,0 +1,46 @@
+{
+  "style": {
+    "art_style": "fantasy illustration",
+    "character_type": "elf archer",
+    "mood": "serene and focused",
+    "color_palette": [
+      "emerald green",
+      "gold",
+      "brown",
+      "soft white",
+      "forest green"
+    ],
+    "lighting": {
+      "type": "backlit",
+      "quality": "soft and diffused",
+      "source": "sunlight filtering through leaves",
+      "effect": "glowing particles and lens flare"
+    },
+    "composition": {
+      "framing": "close-up portrait",
+      "angle": "slightly low angle",
+      "focus": "character's face and bow",
+      "background": "blurred forest with bokeh effect"
+    },
+    "details": {
+      "character_features": [
+        "pointed ears",
+        "long flowing brown hair",
+        "green eyes",
+        "detailed golden arm bracers",
+        "ornate belt"
+      ],
+      "costume": {
+        "main_color": "teal green",
+        "material_texture": "soft fabric with subtle folds",
+        "accessories": "embroidered trim, leather straps"
+      },
+      "weapon": {
+        "type": "longbow",
+        "material": "wood with gold inlay",
+        "state": "drawn and ready to fire"
+      }
+    },
+    "atmosphere": "magical forest setting with ethereal glow"
+  }
+}

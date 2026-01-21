@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Battle UI Screen</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#38e07b",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#0a0a12",
+                        "enemy-accent": "#00e5ff", // Neon Cyan/Blue
+                        "player-accent": "#ffaa00", // Neon Orange/Gold
+                        "card-bg": "#1e1e24",
+                        "card-surface": "#2a2a35",
+                        "card-text": "#e0e0e0",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                    boxShadow: {
+                        'neon-enemy': '0 0 15px rgba(0, 229, 255, 0.5)',
+                        'neon-player': '0 0 15px rgba(255, 170, 0, 0.5)',
+                        'card': '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .border-glow-enemy {
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3), inset 0 0 5px rgba(0, 229, 255, 0.1);
+        }
+        .border-glow-player {
+            box-shadow: 0 0 10px rgba(255, 170, 0, 0.3), inset 0 0 5px rgba(255, 170, 0, 0.1);
+        }.scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display text-white overflow-hidden h-screen w-full flex flex-col items-center justify-center relative bg-gray-900">
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center blur-sm scale-110 brightness-[0.4]" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBfUA9wEsPIo6zScBLpJpvPJrv-04mW91lLhvj0iIbG83I_XlH9c6j_2wPcZ5QaAcCadNe4DHSmLtNuBUKFMBqnL8v4cOLrVGCQPN-6UMjuU9k4-f8cejEem3DpZM2SCBFF3NrHdNbVaNoPK4GdZ6XtH918DobatM66B3WSy6FBbWhq0lqTnoCSVl4agr2ch341-zyANnawyTYHx8OaKYEtpTdfVcgEbWanTaA5ncRazGTcd_wX1QSoM_WTBdbyXtzEYHyiwCQrB-M");'></div>
+<div class="absolute inset-0 bg-gradient-to-b from-indigo-950/70 via-slate-900/60 to-black/80 mix-blend-multiply"></div>
+<div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-150 contrast-150"></div>
+</div>
+<div class="relative z-10 w-full max-w-md h-full flex flex-col justify-between p-4">
+<div class="flex flex-col items-center justify-center pt-6 pb-2 shrink-0">
+<div class="relative flex items-center justify-center">
+<div class="w-24 h-24 rounded-full border-4 border-enemy-accent border-glow-enemy bg-cover bg-center shadow-neon-enemy z-10" data-alt="Opponent warlord avatar, menacing fantasy character" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBfUA9wEsPIo6zScBLpJpvPJrv-04mW91lLhvj0iIbG83I_XlH9c6j_2wPcZ5QaAcCadNe4DHSmLtNuBUKFMBqnL8v4cOLrVGCQPN-6UMjuU9k4-f8cejEem3DpZM2SCBFF3NrHdNbVaNoPK4GdZ6XtH918DobatM66B3WSy6FBbWhq0lqTnoCSVl4agr2ch341-zyANnawyTYHx8OaKYEtpTdfVcgEbWanTaA5ncRazGTcd_wX1QSoM_WTBdbyXtzEYHyiwCQrB-M");'>
+</div>
+<div class="absolute -bottom-3 bg-gray-900 border-2 border-enemy-accent text-white px-3 py-1 rounded-full flex items-center gap-1 shadow-lg z-20">
+<span class="material-symbols-outlined text-red-500 text-sm">favorite</span>
+<span class="text-lg font-bold">20</span>
+</div>
+</div>
+<p class="mt-4 text-enemy-accent text-sm font-bold tracking-wider uppercase opacity-80 drop-shadow-md">Enemy Warlord</p>
+</div>
+<div class="flex-1 flex flex-col justify-center w-full gap-4 py-2">
+<div class="grid grid-cols-3 gap-3 w-full px-2">
+<div class="aspect-[9/16] bg-card-surface border border-gray-700 shadow-card flex flex-col overflow-hidden relative group rounded-none">
+<div class="w-full aspect-square relative bg-gray-900 border-b border-gray-600 shrink-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="Enemy skeleton warrior illustration" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCLl4c2W3Yeo_TrcKcyaHmpgI1tOu9KlmaEm9OkLk6rZ03j8RjMn2vpFbq_EFFOvXKKnCMdJ14fVE4jLcTeRZvIdukyf18KAlYpxWDt735JM_7O4WTrfHCV0VrE7Oes32rP_euuqEPr25w8EpwUDdCnFPiGv5t7e1lvs0PZ9MjuCraZI9nHi-yt5T3eUjMFpRimqSVC160UCbDwUaxHhhm6PtZr_V83FzkFfZqTwM5f6xRayv__MHcwJoTVdQOKa8SnlYiNeKzjFvI");'></div>
+<div class="absolute top-1 left-1 w-6 h-6 bg-gray-900/90 border-2 border-yellow-600 text-yellow-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">3</span>
+</div>
+<div class="absolute top-1 right-1 w-6 h-6 bg-gray-900/90 border-2 border-red-800 text-red-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(185,28,28,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">4</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative p-2">
+<div class="flex items-center gap-1 pb-1.5 border-b border-white/10 mb-1.5">
+<div class="w-3.5 h-3.5 bg-gray-800 rounded flex items-center justify-center border border-gray-600 shrink-0">
+<span class="material-symbols-outlined text-[10px] text-gray-400">swords</span>
+</div>
+<div class="text-[10px] font-bold text-gray-200 uppercase truncate leading-none w-full tracking-wide">Skeleton Warrior</div>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="text-[11px] text-gray-300 leading-snug">
+                                Revives once after death with 1 HP.
+                            </div>
+</div>
+</div>
+<div class="absolute top-0 w-full h-0.5 bg-enemy-accent shadow-[0_0_10px_rgba(0,229,255,0.8)]"></div>
+</div>
+<div class="aspect-[9/16] bg-card-surface border border-gray-700 shadow-card flex flex-col overflow-hidden relative rounded-none">
+<div class="w-full aspect-square relative bg-gray-900 border-b border-gray-600 shrink-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="Enemy dark mage illustration" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDkvhA4UlAOWdqZzhdxjWfPqFuchHVEDsZVVQP2kHuCHcI0R9HYaS98GOwap527EQgZjtrjAAAixDSbCFrI1-szZgEW9BfRRaBZLFUXxXuMNWumwVXc7TQyL3l9VsJ73NZHVEq1U8CeVL6q3MzAW9mqzqsjNlHq2m87yMD6KtKCceGOQ2la0px4sdU_37Z3vgqLpEClVf4Y1r_Q-1yOaEsO54GE-AgABXaHFxKrOywu2kwiF0-TP97wQvHzToIfhrJeWDif6iuupPs");'></div>
+<div class="absolute top-1 left-1 w-6 h-6 bg-gray-900/90 border-2 border-yellow-600 text-yellow-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">6</span>
+</div>
+<div class="absolute top-1 right-1 w-6 h-6 bg-gray-900/90 border-2 border-red-800 text-red-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(185,28,28,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">2</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative p-2">
+<div class="flex items-center gap-1 pb-1.5 border-b border-white/10 mb-1.5">
+<div class="w-3.5 h-3.5 bg-gray-800 rounded flex items-center justify-center border border-gray-600 shrink-0">
+<span class="material-symbols-outlined text-[10px] text-gray-400">auto_fix</span>
+</div>
+<div class="text-[10px] font-bold text-gray-200 uppercase truncate leading-none w-full tracking-wide">Dark Mage</div>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="text-[11px] text-gray-300 leading-snug">
+                                Deals 2 damage to all enemies.
+                            </div>
+</div>
+</div>
+</div>
+<div class="aspect-[9/16] bg-card-surface border border-gray-700 shadow-card flex flex-col overflow-hidden relative rounded-none">
+<div class="w-full aspect-square relative bg-gray-900 border-b border-gray-600 shrink-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="Enemy goblin archer illustration" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCL7qUoeSJSrFZUCzmSI2SI1RoPa1R5QzichrQuG7ve8EN_UzaD6hP-4DcwPDj0LSAuv7XjIJfZ1WaZfxWxymesy6RtZDWIY_BY0aMJermzbGnPI2ZeVeNTprF1AsF6V2M5mzFMH-HnV0BXvsBMxyPehA_u44NNe-I6hVdpQVlx6VoDwFuRDMk2IDUT-Jg33aq6PMXWXIMLcS818WYQeJmQ1ykS43ZCWmwww-vtfxvZu7uoYfvkawzLlCqM8LdUp1-UQfJ0e_Au3Nk");'></div>
+<div class="absolute top-1 left-1 w-6 h-6 bg-gray-900/90 border-2 border-yellow-600 text-yellow-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">2</span>
+</div>
+<div class="absolute top-1 right-1 w-6 h-6 bg-gray-900/90 border-2 border-red-800 text-red-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(185,28,28,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">5</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative p-2">
+<div class="flex items-center gap-1 pb-1.5 border-b border-white/10 mb-1.5">
+<div class="w-3.5 h-3.5 bg-gray-800 rounded flex items-center justify-center border border-gray-600 shrink-0">
+<span class="material-symbols-outlined text-[10px] text-gray-400">gps_fixed</span>
+</div>
+<div class="text-[10px] font-bold text-gray-200 uppercase truncate leading-none w-full tracking-wide">Goblin Archer</div>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="text-[11px] text-gray-300 leading-snug">
+                                Attacks the furthest enemy unit first.
+                            </div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-3 w-full px-2 items-center justify-items-center h-12">
+<div class="flex items-center justify-center animate-pulse">
+<span class="material-symbols-outlined text-white/60 text-3xl font-bold transform rotate-[-45deg] drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">arrow_downward</span>
+</div>
+<div class="flex items-center justify-center">
+<div class="w-10 h-10 rounded-full bg-black/40 border border-white/20 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)] backdrop-blur-md">
+<span class="material-symbols-outlined text-white text-2xl">swords</span>
+</div>
+</div>
+<div class="flex items-center justify-center animate-pulse">
+<span class="material-symbols-outlined text-white/60 text-3xl font-bold transform rotate-[45deg] drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">arrow_downward</span>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-3 w-full px-2">
+<div class="aspect-[9/16] bg-card-surface border border-player-accent/60 shadow-card flex flex-col overflow-hidden relative transform scale-105 z-10 shadow-[0_0_20px_rgba(255,170,0,0.15)] rounded-none">
+<div class="w-full aspect-square relative bg-gray-900 border-b border-player-accent/30 shrink-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="Player knight illustration" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCu2zS1kKJkJpfKuomh3LfF8a7rbLS3EVPr0NdENEZGYcrL2joVdZzudmpTJ1-NysiP_sCvnlEdc456PGG2K4AyQS7-4QVoz7kxliYoCfgFsh6Y87-36nJr9oAaXHDYCx3BFwjTfVdhJAda9yFKRQBmFeINoy5hrPttfMwKt8WhlTJ-Ugn4F2-fiti_QyacqFQ1zfFNmjgPZwoZF6fryt0G-t-jR5crc4Uo2l1HTMBfC1LZ8MG1OYfb_ztJJ2yhs6m8Ddhn9NYrlRk");'></div>
+<div class="absolute top-1 left-1 w-6 h-6 bg-gray-900/90 border-2 border-yellow-500 text-yellow-400 font-extrabold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">4</span>
+</div>
+<div class="absolute top-1 right-1 w-6 h-6 bg-gray-900/90 border-2 border-red-600 text-red-400 font-extrabold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(220,38,38,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">5</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative p-2">
+<div class="flex items-center gap-1 pb-1.5 border-b border-white/10 mb-1.5">
+<div class="w-3.5 h-3.5 bg-gray-800 rounded flex items-center justify-center border border-gray-600 shrink-0">
+<span class="material-symbols-outlined text-[10px] text-player-accent">security</span>
+</div>
+<div class="text-[10px] font-bold text-white uppercase truncate leading-none w-full tracking-wide">Ironclad Knight</div>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="text-[11px] text-gray-300 leading-snug">
+                                Takes 50% less damage from first hit.
+                            </div>
+</div>
+</div>
+<div class="absolute inset-0 border border-player-accent/50 pointer-events-none rounded-none"></div>
+</div>
+<div class="aspect-[9/16] bg-card-surface border border-gray-700 shadow-card flex flex-col overflow-hidden relative opacity-90 rounded-none">
+<div class="w-full aspect-square relative bg-gray-900 border-b border-gray-600 shrink-0">
+<div class="w-full h-full bg-cover bg-center grayscale-[20%]" data-alt="Player elf ranger illustration" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDCgPcWYYQvwCQ512sQJTFyYP3p7IiLoFjvWIoX0h3zhQpvwxzbAYFwVo8onibZJr8j5yLcX5jNDtrX8j1a2iQYSLukOuCUsl63gB0tkw_MtsYuTzx2zrIZukAHPwmCHO2H7LJk_bdofiOPeP6o2q56J5LPQyWk633PU3wF_0nACL9GrSwNxUp7-u3ZDHh-JjmHZadXyDRakjQx6OdE7l6oG-fzrRv0ko829wjdu66Iz77LG9-Nxu1N9mnDmnEoIu1Ms-1tYtW_ALg");'></div>
+<div class="absolute top-1 left-1 w-6 h-6 bg-gray-900/90 border-2 border-yellow-600 text-yellow-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">3</span>
+</div>
+<div class="absolute top-1 right-1 w-6 h-6 bg-gray-900/90 border-2 border-red-800 text-red-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(185,28,28,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">3</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative p-2">
+<div class="flex items-center gap-1 pb-1.5 border-b border-white/10 mb-1.5">
+<div class="w-3.5 h-3.5 bg-gray-800 rounded flex items-center justify-center border border-gray-600 shrink-0">
+<span class="material-symbols-outlined text-[10px] text-gray-400">forest</span>
+</div>
+<div class="text-[10px] font-bold text-gray-300 uppercase truncate leading-none w-full tracking-wide">Elven Ranger</div>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="text-[11px] text-gray-400 leading-snug">
+                                Double damage against flying units.
+                            </div>
+</div>
+</div>
+</div>
+<div class="aspect-[9/16] bg-card-surface border border-gray-700 shadow-card flex flex-col overflow-hidden relative opacity-90 rounded-none">
+<div class="w-full aspect-square relative bg-gray-900 border-b border-gray-600 shrink-0">
+<div class="w-full h-full bg-cover bg-center grayscale-[20%]" data-alt="Player dwarf defender illustration" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAxRulCAyXy9vuUuqsBthJkPEpXm1z4KXmf1QxIiqAQ3gfsrfg1EGp7UzJMj_OEtMNTpbXp2CEJjRvKPbz9zMHvcHoqWHOZr8LyROplVSjTB19PBHr-Lc_MfH18mTG_yxNosvcdgNb6j0xlk6FSZ9LQgq5RwveiHIToSfUe5UONBqtA-Pk1YuyQhv7k1JbaZkM2poBWqvbyrCp1updUmC3JGvBgX6t0bm_aFAanlKI09aMvzs0EMnRyoAa1TYhOtAY10con10_f0iE");'></div>
+<div class="absolute top-1 left-1 w-6 h-6 bg-gray-900/90 border-2 border-yellow-600 text-yellow-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(234,179,8,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">1</span>
+</div>
+<div class="absolute top-1 right-1 w-6 h-6 bg-gray-900/90 border-2 border-red-800 text-red-400 font-bold text-[11px] flex items-center justify-center shadow-[0_0_8px_rgba(185,28,28,0.5)] z-10 backdrop-blur-sm transform rotate-45">
+<span class="transform -rotate-45">8</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative p-2">
+<div class="flex items-center gap-1 pb-1.5 border-b border-white/10 mb-1.5">
+<div class="w-3.5 h-3.5 bg-gray-800 rounded flex items-center justify-center border border-gray-600 shrink-0">
+<span class="material-symbols-outlined text-[10px] text-gray-400">shield</span>
+</div>
+<div class="text-[10px] font-bold text-gray-300 uppercase truncate leading-none w-full tracking-wide">Dwarf Guard</div>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="text-[11px] text-gray-400 leading-snug">
+                                Grants +1 Armor to adjacent allies.
+                            </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center justify-center pb-8 pt-2 shrink-0">
+<p class="mb-4 text-player-accent text-sm font-bold tracking-wider uppercase opacity-80 drop-shadow-md">You</p>
+<div class="relative flex items-center justify-center">
+<div class="absolute -top-3 bg-gray-900 border-2 border-player-accent text-white px-3 py-1 rounded-full flex items-center gap-1 shadow-lg z-20">
+<span class="material-symbols-outlined text-red-500 text-sm">favorite</span>
+<span class="text-lg font-bold">20</span>
+</div>
+<div class="w-24 h-24 rounded-full border-4 border-player-accent border-glow-player bg-cover bg-center shadow-neon-player z-10" data-alt="Player hero avatar, heroic fantasy character" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDZ43Cpj2zl_eXG6wsi8hjcgrIvNgBEoa5LvN88wiZ42dcZhFcxZaVQIzy_WK46eFMJ2ctOtNGKhIGzUs8TTa3on60qwRmknehaQ-PsEZ-zx1O7RnrX0vVy-yFhXAvXyjfbpJJr4Qrs6mfbL-bYECTXrTNetPWR_PZ46snUHKhis-eX1XdmVD7TxDs0Isw6w_A738Oncjt8WWK5-HlsgRd4m4Lqfte42b51Ejk-w674TDvULdsj-nXGpvKJuymjv2fF8K-BXr6N-K0");'>
+</div>
+</div>
+<button class="absolute bottom-6 right-6 w-14 h-14 bg-primary text-background-dark rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(56,224,123,0.4)] active:scale-95 transition-transform z-30 ring-2 ring-white/20">
+<span class="material-symbols-outlined text-3xl">play_arrow</span>
+</button>
+</div>
+</div>
+
+</body></html>

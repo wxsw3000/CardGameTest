@@ -1,0 +1,29 @@
+1、创建Match
+2、在创建Match的构造函数中，创建两个own和oppo两个player
+3、在创建player的构造函数中，创建各自的slots
+4、在创建slots的构造函数中，创建左中右三个slotIcon
+5、在创建slotIcon的构造函数中，设置自己的scale和mask，并将自己的状态设置为standby；
+6、slotIcon创建完毕后，slots构造函数中进行了ui布局，并将slots状态置为standby；
+7、slots创建完毕后，player构造函数中初始化玩家卡组、进行ui布局，并将player状态置为awaiting；
+8、至此Match创建完毕，使用Match.startBattle方法开启战斗，方法中监听了胜负条件（两个player的actordead事件）；
+9、在Match.startBattle方法中，将Match状态置为WaitingForWarriors调用Match.waitingForWarriors方法；
+10、waitingForWarriors方法将isMyTurn为true的Player状态置为SpinToWarriors（调用player.spin），并监听player的attacking状态。其中通过控制slots的状态（starting和stoping）让slots自动旋转和停止，在调用stoping前，还要通过randomInRound（关键方法）来生成旋转结果；
+11、player的spin方法中监听了slots的standby状态；
+12、slots的starting和stoping状态将分别调用slots.startScroll方法和slots.stopScroll方法，这两个方法中又分别控制sloticon的状态spinning和stoping来达到旋转和停止旋转的目的；
+13、slots要控制三个sloticon的行为，在停止时，三个sloticon要依次停止。通过监听sloticon的standby状态来达成前述目的。在三个sloticon都停下来后，将slots状态置为standby；
+14、player监听到了slots的standby，则将自己的状态置为attacking；
+15、Match监听到attacking，则判断当前是前哨战还是普通战，前哨战需要两个玩家状态都为attacking、普通战只需要回合方的状态为attacking，上述条件满足后，则将Match状态置为settlement（调用Match.settlement方法），开始对本次结果进行战斗演算；
+16、new一个battle，传入主攻方（回合方）和防守方（Battle用于战斗计算和表演）；
+17、battle.rally 方法中，通过生成多个battleAction，将战斗中各角色的交互规则制定出来；
+18、battleAction中传入具体的【主动角色】和【被动角色】，以及【交互类型】；
+19、通过不同的【交互类型】，构建battleAction中的combat方法、combatCompute方法、combatPerform方法、combatEnd方法；
+21、在battleAction中，除了战斗各actor的属性数据的计算，还有记录了和数据计算相匹配的表演效果。这些效果通过BattleEffect传入因由者actor：causer和招致者actor：effctor、特效事件类型、特效相关数据记录。其perform方法将要执行的特效动画和对应actor的各种事件绑定起来；
+20、combat方法是战斗交互的执行方法，其中可以执行战斗的计算方法combatCompute和战斗的表演方法combatPerform（在其中执行队列中所有battleEffect的perform方法），可以通过Match的模式pureComputingModel来决定是否执行战斗表演（调试大量战斗时，不需要播放战斗）;
+20、准备好之后，在battle.rally中调用队列中第一个battleAction的combat方法，一个battleAction执行完毕后，将执行其combatEnd方法（使用主动回合方player：performer的ACTION_END事件作为battleAction.combatEnd的触发事件），借助这个特性，就可以用combatEnd方法来执行队列中下一个battleAction的combat方法，直至最后一个battleAction；
+21、最后一个battleAction的combatEnd方法为结束本次battle的方法，方法中将互换两个玩家的主动被动关系，并且置Match 状态为spinning，再度开启转动，形成闭环；
+
+
+
+
+
+

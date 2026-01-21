@@ -1,0 +1,25 @@
+战斗流程
+
+1、Match.startBattle
+a）监听玩家英雄的PLAYER_DEAD事件
+b）置Match的状态为WaitingForWarriors
+c）WaitingForWarriors状态变化-》
+     i. Match.computeBattle计算出本回合结果，并注册了各种动作和特效
+		             一个回合的战斗：Battle，传入攻击方player和防守方player
+	一个回合战斗中多个战斗角色的交互：BattleAction，传入攻击角色和防守角色，包含player或card两种类型
+	          一次角色交互中的动作和效果：BattleEffect，传入监听player，执行player和动作效果的种类
+     ii.Match.playSpin监听player的PLAYER_ATTACK的事件，并置player的状态为SpinToWarriors调用spinning；
+2、this.currentBattle.play()
+     PLAYER_ATTACK事件触发onSpinComplete，置Match状态为StartActing，执行this.currentBattle.play()方法进行战斗动作和特效的播放；
+     i.this.currentBattle.play()中触发了战斗动作，并开始执行computeBattle中注册的各种动作和特效；
+     ii.BattleEffect中，不同的类型将监听不同的结束事件，最终调用BattleEffect的结束方法，onEffectEnd方法；
+     iii.BattleAction判断其下的所有BattleEffect都播放完成了，则判断当前BattleAction完成，调用onActionEnd方法；
+     iiii.Battle中的最后一个BattleAction完成了，则Battle完成，结束当前回合，开始下一回合；
+3、onMatchOver
+     
+player的ACTOR_DEAD事件(在类型为die的BattleEffect中的播放完成方法diePerformEnd中抛出事件)-》
+player.onDead方法(在Match.computeBattle计算阶段造成的player.die方法中监听的)-》
+player状态Dead-》
+PLAYER_DEAD事件-》
+Match.onActorDead-》
+Match状态Over	

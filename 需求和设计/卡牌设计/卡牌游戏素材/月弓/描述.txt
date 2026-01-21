@@ -1,0 +1,55 @@
+ 我想做一个精灵族女弓箭手的图片，这个精灵族女弓箭手左眼和右眼的颜色不一样，一只是海蓝色的一只是褐色的。她的头发是红色的。我希望这张图片的长宽比和扑克牌是一致的。请你帮我生成提示词和相关的参数设置
+
+我有几点意见：1、希望弓箭手正在做拉弓攻击的动作，并且表情是准备战斗时的坚定；2、希望他正蹲在一棵树上；其他就按照“红发+异色瞳+弓箭手+扑克牌比例”
+
+Width
+512
+Height
+768
+
+Positive Prompt（正向提示词）
+(masterpiece, best quality, ultra-detailed, anime style:1.3), 
+1girl, solo, elf archer, 
+vibrant RED long hair, wavy, wind-blown, 
+extremely clear heterochromia, 
+left eye vibrant sea blue with subtle glow, 
+right eye warm earthy brown with detailed iris, 
+pointed ears, slender, athletic build, 
+crouching on thick moss-covered tree branch, 
+perched high in ancient forest canopy, 
+leaning forward sharply, aiming bow downward at unseen target below, 
+arrow nocked, bowstring taut, 
+full body view, visible legs and feet gripping branch, 
+determined expression, focused gaze, battle-ready, 
+leather armor with leaf motifs, quiver on back, 
+forest background, dappled sunlight filtering through leaves, 
+depth of field, bokeh, cinematic lighting, 
+high angle view, looking down from above, 
+512x768, portrait, vertical composition
+
+ Negative Prompt（反向提示词）
+(low quality, worst quality:1.4), 
+bad anatomy, extra fingers, fused fingers, 
+blurry face, red eyes, yellow eyes, green eyes, same color eyes, 
+cartoonish eyes, doll-like eyes, blue hair, black hair, 
+standing pose, flat ground, no bow, no arrow, 
+realistic, photorealistic, 3D render, 
+text, signature, watermark, 
+modern clothing, city, buildings
+
+如果还是被裁剪？试试“局部重绘”或“ControlNet”
+方法一：Inpaint 局部重绘（推荐）
+上传这张图 → 进入 Img2Img → Inpaint；
+用画笔圈出角色下半身区域（包括腿、脚、树枝）；
+在 Inpaint prompt 中写：
+123
+full body, visible legs and feet gripping thick mossy tree branch, 
+leaning forward, aiming bow downward, 
+forest floor far below, depth of field
+Negative prompt 保留原负向词；
+Denoising strength 设为 0.4–0.5；
+生成！
+方法二：使用 ControlNet（如果你有安装）
+下载并启用 OpenPose 或 Canny 控制模型；
+画一个“蹲在树枝上拉弓”的草图 → 让模型按姿势生成；
+可精准控制肢体动作和构图。
