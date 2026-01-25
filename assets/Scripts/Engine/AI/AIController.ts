@@ -22,7 +22,7 @@ export class AIController {
             case GamePhase.DeckAdjustment:
                 // For now, the AI will not perform any deck adjustments.
                 // It immediately confirms that it's done with this phase.
-                return { type: 'CONFIRM_DECK_ADJUSTMENT' };
+                return { type: 'CONFIRM_ADJUSTMENT' };
 
             case GamePhase.Rotation:
                 // For now, the AI will never keep cards on the field.

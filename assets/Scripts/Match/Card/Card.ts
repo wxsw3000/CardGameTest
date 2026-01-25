@@ -30,11 +30,12 @@ export class Card extends Actor {
     /**
      * Overrides the Actor's updateView to handle card-specific fields
      * and load the correct sprite frame.
-     * @param state The live state of the card from the engine.
+     * @param state The live state of the card from the engine, or null for a static view.
      * @param staticData The static data for this card type.
      */
-    public updateView(state: ICardState, staticData: IStaticCardData): void {
-        if (!state || !staticData) {
+    public updateView(state: ICardState | null, staticData: IStaticCardData): void {
+        // Only require staticData to render a card's appearance
+        if (!staticData) {
             this.node.active = false;
             return;
         }
@@ -42,8 +43,9 @@ export class Card extends Actor {
         // Call the parent method to update common actor fields (hp, attack, name)
         super.updateView(state, staticData);
 
-        this.instanceId = state.instanceId;
-        this.staticId = state.staticId;
+        // Only set instanceId if we have a live state
+        this.instanceId = state ? state.instanceId : null;
+        this.staticId = staticData.id;
 
         // Update card-specific fields
         if (this.descriptionLabel) {

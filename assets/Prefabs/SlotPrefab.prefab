@@ -267,6 +267,8 @@
       "__id__": 0
     },
     "fileId": "e7ShSJK2VMEYlnVdw89LTm",
+    "instance": null,
+    "targetOverrides": null,
     "nestedPrefabInstanceRoots": null
   },
   {
@@ -662,7 +664,7 @@
     "scrollView": {
       "__id__": 19
     },
-    "cardFullPrefab": {
+    "cardPrefab": {
       "__uuid__": "2cace9c9-e05e-4588-9e6d-e0da2d027f44",
       "__expectedType__": "cc.Prefab"
     },

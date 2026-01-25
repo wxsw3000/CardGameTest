@@ -31,25 +31,41 @@ export class Actor extends Component {
 
     /**
      * Updates the actor's visual representation based on the state from the game engine.
-     * @param state The live state of the card (hp, buffs, etc.)
+     * Can now accept a null state to render a card with only its static data (e.g., for UI previews).
+     * @param state The live state of the card (hp, buffs, etc.), or null.
      * @param staticData The static data of the card (name, description, etc.)
      */
-    public updateView(state: ICardState, staticData: IStaticCardData): void {
-        if (!state || !staticData) {
+    public updateView(state: ICardState | null, staticData: IStaticCardData): void {
+        if (!staticData) {
             this.node.active = false;
             return;
         }
 
         this.node.active = true;
-        this.currentHp = state.hp;
-
         if (this.nameLabel) this.nameLabel.string = staticData.cardName;
-        if (this.attackLabel) this.attackLabel.string = Math.floor(state.attack).toString();
-        
-        // Ensure HP display doesn't go below zero.
-        if (this.hpLabel) this.hpLabel.string = Math.max(0, Math.floor(state.hp)).toString();
 
-        // TODO: Update sprite frame from staticData.spriteFramePath
+        if (state) {
+            // If live state is provided, use it
+            this.currentHp = state.hp;
+            if (this.attackLabel) this.attackLabel.string = Math.floor(state.attack).toString();
+            if (this.hpLabel) this.hpLabel.string = Math.max(0, Math.floor(state.hp)).toString();
+        } else {
+            // Otherwise, use static data for a base view
+            this.currentHp = staticData.hp;
+            if (this.attackLabel) this.attackLabel.string = Math.floor(staticData.attack).toString();
+            if (this.hpLabel) this.hpLabel.string = Math.max(0, Math.floor(staticData.hp)).toString();
+        }
+    }
+
+    /**
+     * A lightweight method to only update the HP display.
+     * @param newHp The new HP value to display.
+     */
+    public updateHp(newHp: number): void {
+        this.currentHp = newHp;
+        if (this.hpLabel) {
+            this.hpLabel.string = Math.max(0, Math.floor(newHp)).toString();
+        }
     }
 
     /**

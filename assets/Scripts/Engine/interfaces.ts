@@ -147,3 +147,64 @@ export interface IAction {
  *   }
  * }
  */
+ 
+//----------------------------------------------------------------//
+//                      COMBAT LOG & EVENTS
+//----------------------------------------------------------------//
+
+/**
+ * The top-level structure holding the entire log for a combat phase.
+ */
+export interface ICombatLog {
+    events: CombatEvent[];
+}
+
+/**
+ * Represents a single, atomic event that occurs during combat.
+ * The entire combat phase is an array of these events.
+ */
+export type CombatEvent = 
+    | AttackEvent
+    | DamageEvent
+    | DeathEvent
+    | GameOverEvent;
+
+/**
+ * Event: A unit initiates an attack on another unit.
+ * This triggers the "move towards target" animation.
+ */
+export interface AttackEvent {
+    type: 'attack';
+    attackerId: number;
+    defenderId: number;
+}
+
+/**
+ * Event: A unit's HP changes.
+ * This triggers a "damage number" popup and an HP bar update.
+ */
+export interface DamageEvent {
+    type: 'damage';
+    targetId: number;
+    damage: number;
+    newHp: number;
+}
+
+/**
+ * Event: A unit's HP drops to 0 or below.
+ * This triggers the "death" animation.
+ */
+export interface DeathEvent {
+    type: 'death';
+    targetId: number;
+}
+
+/**
+ * Event: The game has ended.
+ * This triggers the "Victory/Defeat" screen.
+ */
+export interface GameOverEvent {
+    type: 'gameOver';
+    winner: PlayerSide;
+}
+
