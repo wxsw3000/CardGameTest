@@ -5,7 +5,7 @@
  */
 
 import { _decorator, Component, Node, EventTouch, Vec3, UITransform, Label, resources, SpriteFrame, Sprite, Event } from 'cc';
-import { IStaticCardData } from '../Engine/Data/CardData'; // Adjusted path for the current project
+import { IStaticCardData } from '../Engine/Data/CardData';
 
 const { ccclass, property } = _decorator;
 
@@ -39,8 +39,8 @@ export class DeckCardUI extends Component {
     onLoad() {
         this.node.on(Node.EventType.TOUCH_START, this._onTouchStart, this);
         this.node.on(Node.EventType.TOUCH_MOVE, this._onTouchMove, this);
-        this.node.on(Node.EventType.TOUCH_CANCEL, this._onTouchEnd, this); // TOUCH_CANCEL also ends drag
         this.node.on(Node.EventType.TOUCH_END, this._onTouchEnd, this);
+        this.node.on(Node.EventType.TOUCH_CANCEL, this._onTouchEnd, this);
     }
 
     private _onTouchStart(event: EventTouch) {
@@ -51,28 +51,11 @@ export class DeckCardUI extends Component {
         this._originalPos.set(this.node.position);
 
         // Move to top layer to render above other UI
-        // Assuming GameManager is the scene root's parent or a top-level node.
-        // A more robust solution might be to explicitly have a 'DragLayer' node
-        // but for now, moving it to its grandparent's parent is an approximation.
-        // If the prefab hierarchy is CardDeck -> Lane -> Card, then node.parent.parent would be CardDeck,
-        // and node.parent.parent.parent would be the Scene root or another common parent.
-        // This needs to be carefully handled to avoid errors if the hierarchy changes.
-        // For now, let's simplify to move to the root of the current scene.
-        let rootNode = this.node.scene.getChildByName('Canvas'); // Common root node in Cocos Creator scenes
-        if (rootNode) {
-             rootNode.addChild(this.node);
-        } else {
-             console.warn("Could not find 'Canvas' node to move card to for dragging. Check scene hierarchy.");
-             // Fallback to original logic if Canvas is not found
-             if (this.node.parent && this.node.parent.parent && this.node.parent.parent.parent) {
-                this.node.parent.parent.parent.addChild(this.node);
-            }
-        }
-       
+        this.node.parent.parent.parent.addChild(this.node);
         this.node.setWorldPosition(event.getUILocation().x, event.getUILocation().y, 0);
 
         // Optional: visual feedback
-        this.node.setScale(1.1, 1.1, 1);
+        this.node.setScale(1.1, 1.1);
     }
 
     private _onTouchMove(event: EventTouch) {
@@ -85,7 +68,7 @@ export class DeckCardUI extends Component {
         this._isDragging = false;
 
         // Reset visual feedback
-        this.node.setScale(0.45, 0.45, 1);
+        this.node.setScale(1, 1);
 
         // 创建一个标准的 cc.Event 对象
         const customEvent = new Event('card-dropped', true); // 'card-dropped' 是事件名称, true 表示冒泡
@@ -99,7 +82,6 @@ export class DeckCardUI extends Component {
                 returnToOrigin: () => {
                     this._originalParent.addChild(this.node);
                     this.node.setPosition(this._originalPos);
-                    this.node.setScale(0.45, 0.45, 1);
                 }
             };
             // GameManager 的 onCardDropped 中使用了 propagationStopped，也需要手动设置
@@ -107,5 +89,18 @@ export class DeckCardUI extends Component {
             (customEvent as any).propagationImmediateStopped = false;
    
             this.node.dispatchEvent(customEvent);
+
+
+        // const customEvent = new EventCustom('card-dropped', true); // true for bubbles
+        // customEvent.setUserData({
+        //     instanceId: this._instanceId,
+        //     fromLane: this._fromLane,
+        //     dropPosition: this.node.worldPosition,
+        //     returnToOrigin: () => {
+        //         this._originalParent.addChild(this.node);
+        //         this.node.setPosition(this._originalPos);
+        //     }
+        // });
+        // this.node.dispatchEvent(customEvent);
     }
 }

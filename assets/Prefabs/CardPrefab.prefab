@@ -1211,7 +1211,7 @@
     "fileId": "51SiwJWaxH3oEP24aG1cQV"
   },
   {
-    "__type__": "2fcb8aV74VL+5uk3JJ6Srsh",
+    "__type__": "5f92aKbTVhARLl10c6wFoqH",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
@@ -1223,12 +1223,11 @@
       "__id__": 51
     },
     "nameLabel": null,
-    "costLabel": null,
     "_id": ""
   },
   {
     "__type__": "cc.CompPrefabInfo",
-    "fileId": "3f0d6yzntAm7H95RlVF0C6"
+    "fileId": "67XoivuI9HqLu0HKoUzyyu"
   },
   {
     "__type__": "cc.PrefabInfo",

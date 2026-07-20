@@ -1,26 +1,26 @@
 /**
  * @file GameManager.ts
- * @description The main controller component in the Cocos scene. It acts as the bridge
+ * @description The main controller component in the Cocos scene. It acts as the bridge 
  *              between the game engine (data/logic) and the view (Cocos components).
  *              This class is responsible for handling phase changes, playing animations,
  *              and forwarding user input to the FSM.
  */
 
-import { _decorator, Component, Node, Button, Label, Prefab, instantiate, UITransform, Vec3, Color, Layout, Size, view, Vec2, Sprite } from 'cc';
+import { _decorator, Component, Node, Button, Label, Prefab, instantiate, isValid, find } from 'cc';
 import { Player } from './Player/Player';
 import { Card } from './Card/Card';
 import { Slot } from './Slot/Slot';
 import { GameFSM } from '../Engine/GameFSM';
 import { GameStateFactory } from '../Engine/Systems/GameStateFactory';
 import { AIController } from '../Engine/AI/AIController';
-import { IGameState, IAction, PlayerSide, GamePhase, ICombatLog } from '../Engine/interfaces';
+import { IGameState, PlayerSide, GamePhase, ICombatLog } from '../Engine/interfaces';
 import { EventBus, GameEvents } from '../Engine/EventBus';
-import { CardDatabase, IStaticCardData } from '../Engine/Data/CardData';
-import { DeckCardUI } from '../UI/DeckCardUI';
+import { CardDatabase } from '../Engine/Data/CardData';
+import { CardDeckController } from '../UI/CardDeckController'; // Import CardDeckController
 
 const { ccclass, property } = _decorator;
 
-const MAX_CARD_POOL_SIZE = 60; // Unified pool size for all card nodes
+const MAX_CARD_POOL_SIZE = 20;
 
 @ccclass('GameManager')
 export class GameManager extends Component {
@@ -30,13 +30,8 @@ export class GameManager extends Component {
     @property(Button) actionButton: Button = null;
     @property(Label) infoLabel: Label = null;
     @property(Label) timerLabel: Label = null;
-    @property(Prefab) cardPrefab: Prefab = null; // Used for both game cards and UI cards
-
-    // Programmatically created UI nodes
-    private _deckAdjustmentPanel: Node = null;
-    private _leftDeckContainer: Node = null;
-    private _midDeckContainer: Node = null;
-    private _rightDeckContainer: Node = null;
+    @property(Prefab) cardPrefab: Prefab = null;
+    @property({ type: Prefab }) cardDeckPrefab: Prefab = null; // Property to link the CardDeck prefab
 
     private gameState: IGameState = null;
     private gameFSM: GameFSM = null;
@@ -47,14 +42,19 @@ export class GameManager extends Component {
     private isTimerRunning: boolean = false;
     private readonly TURN_TIME_LIMIT = 30;
 
+    private cardDeckInstance: Node = null; // Instance of the CardDeck prefab
+    private cardDeckController: CardDeckController = null; // Controller component of the CardDeck instance
+
+    // --- Lifecycle Methods ---
+
     start() {
-        this.setupPools();
+        this.setupCardPool();
         this.setupEngine();
         this.setupUI();
         this.startGame();
     }
 
-    update = (dt: number) => {
+    update(dt: number) {
         if (this.isTimerRunning) {
             this.turnTimer -= dt;
             if (this.turnTimer <= 0) {
@@ -68,280 +68,113 @@ export class GameManager extends Component {
         }
     }
 
-    private setupPools = () => {
-        if (this.cardPrefab) {
-            // Unified pool for all card nodes (game cards and UI cards)
-            for (let i = 0; i < MAX_CARD_POOL_SIZE; i++) {
-                const node = instantiate(this.cardPrefab);
-                node.active = false;
-                this.node.addChild(node); // Parent to GameManager node initially
-                this.cardViewPool.push(node);
-            }
-        } else {
-            console.error("[GameManager] 'cardPrefab' is not assigned in the editor!");
+    // --- Setup Methods ---
+
+    setupCardPool() {
+        for (let i = 0; i < MAX_CARD_POOL_SIZE; i++) {
+            const cardNode = instantiate(this.cardPrefab);
+            cardNode.active = false;
+            this.node.addChild(cardNode);
+            this.cardViewPool.push(cardNode);
         }
     }
 
-    private setupEngine = () => {
+    setupEngine() {
         this.gameState = GameStateFactory.createInitialState();
         this.gameFSM = new GameFSM(this.gameState);
-        this.eventBus.on(GameEvents.PHASE_CHANGED, this.onPhaseChanged);
+        this.eventBus.on(GameEvents.PHASE_CHANGED, this.onPhaseChanged.bind(this));
     }
-
-    private setupUI = () => {
-        if(this.actionButton) {
-            this.actionButton.node.on(Button.EventType.CLICK, this.onActionButtonClick);
-        }
-        this.createDeckAdjustmentUI(); // Create the UI programmatically
+    
+    setupUI() {
+        this.actionButton.node.on(Button.EventType.CLICK, this.onActionButtonClick, this);
     }
-
-    private startGame = () => {
+    
+    startGame() {
+        console.log("--- Starting New Game ---");
+        // Do a simple, non-animated sync on start
         this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
         this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
         this.gameFSM.transitionTo(GamePhase.PreBattle);
     }
 
-    private createDeckAdjustmentUI = () => {
-        const canvas = this.node.parent; // Assuming GameManager is on a node directly under the canvas
-        if (!canvas) {
-            console.error("GameManager's parent node is not under a Canvas!");
-            return;
-        }
-        const screenSize = view.getVisibleSize();
+    // --- View Update & Management ---
 
-        this._deckAdjustmentPanel = new Node("DeckAdjustmentPanel");
-        const panelTransform = this._deckAdjustmentPanel.addComponent(UITransform);
-        panelTransform.setContentSize(screenSize.width, screenSize.height);
-
-        const panelSprite = this._deckAdjustmentPanel.addComponent(Sprite);
-        panelSprite.color = new Color(0, 0, 0, 200); // Semi-transparent black
-
-        const panelLayout = this._deckAdjustmentPanel.addComponent(Layout);
-        panelLayout.type = Layout.Type.HORIZONTAL;
-        panelLayout.spacingX = 20;
-        panelLayout.paddingLeft = 20;
-        panelLayout.paddingRight = 20;
-        panelLayout.alignHorizontal = true; // Use boolean as per editor type
-
-        this._deckAdjustmentPanel.addComponent(Button); // To block touches
-
-        canvas.addChild(this._deckAdjustmentPanel);
-        this._deckAdjustmentPanel.setSiblingIndex(Infinity); // Render on top
-        this._deckAdjustmentPanel.active = false;
-
-        const createContainer = (name: string): Node => {
-            const container = new Node(name);
-            const contTransform = container.addComponent(UITransform);
-            contTransform.setContentSize(300, screenSize.height / 1.5); // Adjusted height
-
-            const contSprite = container.addComponent(Sprite);
-            contSprite.color = new Color(50, 50, 50, 150); // Slightly darker background
-
-            const layout = container.addComponent(Layout);
-            layout.type = Layout.Type.VERTICAL;
-            layout.resizeMode = Layout.ResizeMode.CONTAINER;
-            layout.spacingY = 10;
-            layout.paddingTop = 20;
-            (layout as any).verticalDirection = 0; // 0 = TOP_TO_BOTTOM
-
-            this._deckAdjustmentPanel.addChild(container);
-            return container;
-        };
-
-        this._leftDeckContainer = createContainer("LeftDeckContainer");
-        this._midDeckContainer = createContainer("MidDeckContainer");
-        this._rightDeckContainer = createContainer("RightDeckContainer");
-
-        this._deckAdjustmentPanel.on('card-dropped', this.onCardDropped);
-    }
-
-    private populateDeckAdjustmentUI = () => {
-        if (!this._deckAdjustmentPanel || !this.cardPrefab) return; // cardPrefab check needed if createDeckAdjustmentUI wasn't called
-
-        const playerState = this.gameState.players[PlayerSide.Player];
-        const containers = [this._leftDeckContainer, this._midDeckContainer, this._rightDeckContainer];
-        const decks = [playerState.leftDeck, playerState.midDeck, playerState.rightDeck];
-        const laneNames: ('left' | 'mid' | 'right')[] = ['left', 'mid', 'right'];
-
-        containers.forEach(c => c.children.forEach(child => this.returnCardViewToPool(child)));
-        containers.forEach(c => c.removeAllChildren());
-
-        for (let i = 0; i < decks.length; i++) {
-            const deck = decks[i];
-            const container = containers[i];
-            const laneName = laneNames[i];
-
-            deck.forEach(instanceId => {
-                const cardState = this.gameState.cards[instanceId];
-                if (cardState) {
-                    const cardUINode = this.getCardViewFromPool();
-                    const staticData = CardDatabase[cardState.staticId];
-
-                    // The main card prefab needs both Card and DeckCardUI scripts
-                    cardUINode.getComponent(Card).updateView(cardState, staticData);
-                    cardUINode.getComponent(DeckCardUI)?.init(staticData, instanceId, laneName);
-
-                    cardUINode.active = true;
-                    container.addChild(cardUINode);
-                }
-            });
-        }
-    }
-
-    private onCardDropped = (event: any) => {
-        event.propagationStopped = true;
-        const detail = event.detail;
-        const { instanceId, fromLane, dropPosition, returnToOrigin } = detail;
-
-        const containers = [this._leftDeckContainer, this._midDeckContainer, this._rightDeckContainer];
-        const laneNames: ('left' | 'mid' | 'right')[] = ['left', 'mid', 'right'];
-        let droppedOnLane: 'left' | 'mid' | 'right' | null = null;
-
-        for (let i = 0; i < containers.length; i++) {
-            const container = containers[i];
-            const bb = container.getComponent(UITransform).getBoundingBoxToWorld();
-            if (bb.contains(new Vec2(dropPosition.x, dropPosition.y))) {
-                droppedOnLane = laneNames[i];
-                break;
-            }
-        }
-
-        if (droppedOnLane && droppedOnLane !== fromLane) {
-            this.gameFSM.dispatchAction({
-                type: 'ADJUST_DECK',
-                payload: { cardInstanceId: instanceId, fromLane: fromLane, toLane: droppedOnLane }
-            });
-            this.populateDeckAdjustmentUI();
-        } else {
-            returnToOrigin();
-        }
-    }
-
-    private onPhaseChanged = async ({ newPhase, data }: { newPhase: GamePhase, data?: any }) => {
-        this.stopTimer();
-        if (this._deckAdjustmentPanel) this._deckAdjustmentPanel.active = false;
-
-        const phaseName = GamePhase[newPhase];
-        this.infoLabel.string = `Turn ${this.gameState.turn} (${PlayerSide[this.gameState.activePlayer]}) - ${phaseName}`;
-        if(this.actionButton) this.actionButton.node.active = false;
-
-        switch (newPhase) {
-            case GamePhase.DeckAdjustment:
-                this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
-                this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
-
-                if (this.gameState.activePlayer === PlayerSide.Player) {
-                    if (this._deckAdjustmentPanel) {
-                        this.populateDeckAdjustmentUI();
-                        this._deckAdjustmentPanel.active = true;
-                    }
-                    if(this.actionButton) this.actionButton.node.active = true;
-                    this.startTimer();
-                } else {
-                    Promise.resolve().then(() => {
-                        this.gameFSM.dispatchAction(AIController.decideAction(this.gameState) || { type: 'CONFIRM_ADJUSTMENT' });
-                    });
-                }
-                break;
-
-            case GamePhase.Rotation:
-                 this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
-                this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
-                if (this.gameState.activePlayer === PlayerSide.Player) {
-                    if(this.actionButton) this.actionButton.node.active = true;
-                    this.startTimer();
-                } else {
-                    Promise.resolve().then(() => {
-                        this.gameFSM.dispatchAction(AIController.decideAction(this.gameState) || { type: 'CONFIRM_ROTATION', payload: { keepInLane: { left: false, mid: false, right: false } } });
-                    });
-                }
-                break;
-
-            case GamePhase.Combat:
-                await this.playRotationAnimations();
-                await this.runCombatAnimations(data as ICombatLog);
-                this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
-                this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
-                this.gameFSM.dispatchAction({ type: 'COMBAT_COMPLETE' });
-                break;
-        }
-    }
-
-    private onActionButtonClick = () => {
-        if (this.gameState.activePlayer !== PlayerSide.Player) return;
-        this.stopTimer();
-        const phase = this.gameState.phase;
-        if (phase === GamePhase.DeckAdjustment) {
-            this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
-        } else if (phase === GamePhase.Rotation) {
-            this.gameFSM.dispatchAction({ type: 'CONFIRM_ROTATION', payload: { keepInLane: { left: false, mid: false, right: false } } });
-        }
-    }
-
-    private onTimerEnd = () => {
-        console.log('[GameManager] Timer ended. Auto-skipping phase.');
-        this.stopTimer();
-        const phase = this.gameState.phase;
-        if (phase === GamePhase.DeckAdjustment) {
-            this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
-        } else if (phase === GamePhase.Rotation) {
-            this.gameFSM.dispatchAction({ type: 'CONFIRM_ROTATION', payload: { keepInLane: { left: false, mid: false, right: false } } });
-        }
-    }
-
-    private playRotationAnimations = async () => {
+    private async playRotationAnimations() {
         const playerAnims = this.syncPlayerSlots(this.playerView, this.gameState.players[PlayerSide.Player]);
         const opponentAnims = this.syncPlayerSlots(this.opponentView, this.gameState.players[PlayerSide.Opponent]);
         await Promise.all([playerAnims, opponentAnims]);
     }
 
-    private syncPlayerSlots = async (playerView: Player, playerState: any) => {
+    private async syncPlayerSlots(playerView: Player, playerState: any) {
+        // This function now only handles rotation animations.
         const animationPromises: Promise<void>[] = [];
+
         for (let i = 0; i < playerView.slots.length; i++) {
             const slotView = playerView.slots[i];
             const slotState = playerState.slots[i];
+
+            // Condition to animate: there's a card in the state, and it's different from the view's card.
             if (slotState.card && (!slotView.card || slotView.card.instanceId !== slotState.card.instanceId)) {
-                if (slotView.card) {
-                    this.returnCardViewToPool(slotView.card.node);
-                }
+                
+                // 1. Prepare animation nodes
                 let deckIds: number[] = [];
                 if (i === 0) deckIds = playerState.leftDeck;
                 else if (i === 1) deckIds = playerState.midDeck;
                 else deckIds = playerState.rightDeck;
+
                 if (deckIds.length === 0) {
-                    slotView.setCard(null);
+                    // This case should not happen if a card was drawn, but as a failsafe:
+                    slotView.setCard(null); // Clear the old card
                     continue;
                 }
+                
+                // Duplicate for a looping effect
                 const visualDeckIds = [...deckIds, ...deckIds, ...deckIds];
+                
                 const animationNodes: Node[] = visualDeckIds.map(id => {
                     const node = this.getCardViewFromPool();
                     const cardState = this.gameState.cards[id];
                     node.getComponent(Card).updateView(cardState, CardDatabase[cardState.staticId]);
                     return node;
                 });
+
+                // Find the specific node instance that represents our target card
+                // We need to find it in the middle duplication to ensure a good scroll
                 const targetInstanceId = slotState.card.instanceId;
                 const midPoint = deckIds.length;
                 let targetNodeIndex = -1;
                 for(let j = midPoint; j < midPoint + deckIds.length; j++) {
-                    if (animationNodes[j].getComponent(Card)?.instanceId === targetInstanceId) {
+                    const nodeCardComp = animationNodes[j].getComponent(Card);
+                    if (nodeCardComp && nodeCardComp.instanceId === targetInstanceId) {
                         targetNodeIndex = j;
                         break;
                     }
                 }
+
+                // Failsafe if the target somehow isn't in the deck
                 if (targetNodeIndex === -1) {
                     slotView.setCard(null);
-                    animationNodes.forEach(n => this.returnCardViewToPool(n));
+                    animationNodes.forEach(n => this.returnCardViewToPool(n)); // Cleanup
                     continue;
                 }
+                
                 const targetCardNode = animationNodes[targetNodeIndex];
+
+                // 2. Play animation
                 const animationPromise = slotView.playScrollAnimation(targetCardNode, animationNodes, playerState.side)
                     .then(() => {
+                        // 3. After animation, cleanup temporary nodes
                         animationNodes.forEach(node => {
-                            if (node !== targetCardNode) this.returnCardViewToPool(node);
+                            if (node !== targetCardNode) {
+                                this.returnCardViewToPool(node);
+                            }
                         });
                     });
+                
                 animationPromises.push(animationPromise);
+
             } else if (!slotState.card && slotView.card) {
+                // This handles clearing a card that was kept but then died in combat (for future logic)
                 this.returnCardViewToPool(slotView.card.node);
                 slotView.setCard(null);
             }
@@ -349,11 +182,184 @@ export class GameManager extends Component {
         await Promise.all(animationPromises);
     }
 
-    private runCombatAnimations = async (log: ICombatLog) => {
+    getCardViewFromPool(): Node {
+        if (this.cardViewPool.length > 0) {
+            const cardNode = this.cardViewPool.pop();
+            // DO NOT activate it here. The consumer will activate it when it's ready to be shown.
+            return cardNode;
+        }
+        // Pool is empty, create a new one.
+        const cardNode = instantiate(this.cardPrefab);
+        cardNode.active = false; // Ensure it starts inactive
+        this.node.addChild(cardNode);
+        return cardNode;
+    }
+
+    returnCardViewToPool(cardNode: Node) {
+        if (!cardNode) return;
+        cardNode.active = false;
+        this.cardViewPool.push(cardNode);
+    }
+
+    // --- Event & Action Handlers ---
+
+    private async onPhaseChanged({ newPhase, data }: { newPhase: GamePhase, data?: any }) {
+        this.stopTimer();
+        this.hideDeckAdjustmentUIForPlayer(); // Ensure any existing UI is hidden
+        this.actionButton.node.active = false; // Always hide GameManager's action button initially
+
+        const phaseName = GamePhase[newPhase];
+        this.infoLabel.string = `Turn ${this.gameState.turn} (${PlayerSide[this.gameState.activePlayer]}) - ${phaseName}`;
+        
+
+        switch (newPhase) {
+            case GamePhase.DeckAdjustment:
+                this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
+                this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
+                
+                if (this.gameState.activePlayer === PlayerSide.Player) {
+                    this.startTimer();
+                    this.showDeckAdjustmentUIForPlayer(); // New method to show CardDeck
+                } else {
+                    // AI logic for DeckAdjustment
+                    Promise.resolve().then(() => {
+                        const aiAction = AIController.decideAction(this.gameState); // AI might choose to adjust
+                        if (aiAction && aiAction.type === 'ADJUST_DECK') {
+                            // If AI chose to adjust, apply it here if needed, then confirm
+                            this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
+                        } else {
+                            // Default AI action if no adjustment, or AI confirms existing
+                            this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
+                        }
+                    });
+                }
+                break;
+            case GamePhase.Rotation:
+                this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
+                this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
+                if (this.gameState.activePlayer === PlayerSide.Player) {
+                    this.actionButton.node.active = true; // For Rotation phase, use GameManager's button
+                    this.startTimer();
+                } else {
+                    Promise.resolve().then(() => {
+                        const aiAction = AIController.decideAction(this.gameState);
+                        if (aiAction) this.gameFSM.dispatchAction(aiAction);
+                        else {
+                            const defaultAction = { type: 'CONFIRM_ROTATION', payload: { keepInLane: { left: false, mid: false, right: false } } };
+                            this.gameFSM.dispatchAction(defaultAction);
+                        }
+                    });
+                }
+                break;
+            
+            case GamePhase.Combat:
+                await this.playRotationAnimations();
+                await this.runCombatAnimations(data as ICombatLog);
+
+                // After all animations are done, do a final sync
+                this.playerView.updateView(this.gameState.players[PlayerSide.Player], this.gameState);
+                this.opponentView.updateView(this.gameState.players[PlayerSide.Opponent], this.gameState);
+
+                this.gameFSM.dispatchAction({ type: 'COMBAT_COMPLETE' });
+                break;
+        }
+    }
+
+    /**
+     * Shows the CardDeck UI for player's deck adjustment.
+     */
+    private showDeckAdjustmentUIForPlayer() {
+        if (!this.cardDeckPrefab) {
+            console.error('GameManager: cardDeckPrefab is not assigned, cannot show UI!');
+            return;
+        }
+
+        // Instantiate if not already present
+        if (!this.cardDeckInstance || !isValid(this.cardDeckInstance)) {
+            this.cardDeckInstance = instantiate(this.cardDeckPrefab) as Node;
+            let canvasNode = find('Canvas'); // Find the root Canvas node
+            if (canvasNode) {
+                canvasNode.addChild(this.cardDeckInstance); // Add to Canvas to render on top
+            } else {
+                console.warn("GameManager: 'Canvas' node not found, adding CardDeck to GameManager node. Z-order might be an issue.");
+                this.node.addChild(this.cardDeckInstance); // Fallback
+            }
+            this.cardDeckController = this.cardDeckInstance.getComponent(CardDeckController);
+
+            if (!this.cardDeckController) {
+                console.error('GameManager: CardDeckPrefab is missing CardDeckController component!');
+                return;
+            }
+            // Listen for the confirmation event from the CardDeckController
+            this.cardDeckInstance.on('DECK_ADJUSTMENT_CONFIRMED', this._onDeckAdjustmentConfirmed, this);
+        }
+
+        // Pass current player's deck data and all game cards for population
+        const playerState = this.gameState.players[PlayerSide.Player];
+        this.cardDeckController.showDeckAdjustmentUI(
+            {
+                left: playerState.leftDeck,
+                mid: playerState.midDeck,
+                right: playerState.rightDeck
+            },
+            new Map(Object.entries(this.gameState.cards).map(([id, cardState]) => [Number(id), cardState])) // Convert object to Map
+        );
+    }
+
+    /**
+     * Hides and destroys the CardDeck UI.
+     */
+    private hideDeckAdjustmentUIForPlayer() {
+        if (this.cardDeckInstance && isValid(this.cardDeckInstance)) {
+            if (this.cardDeckController) {
+                this.cardDeckController.hideDeckAdjustmentUI(); // Clear cards etc.
+                this.cardDeckInstance.off('DECK_ADJUSTMENT_CONFIRMED', this._onDeckAdjustmentConfirmed, this);
+            }
+            this.cardDeckInstance.destroy();
+            this.cardDeckInstance = null;
+            this.cardDeckController = null;
+        }
+    }
+
+    /**
+     * Handles the DECK_ADJUSTMENT_CONFIRMED event from the CardDeckController.
+     * Updates the game state and dispatches the CONFIRM_ADJUSTMENT action.
+     */
+    private _onDeckAdjustmentConfirmed(event: Event) {
+        // Stop further propagation as we've handled it
+        (event as any).propagationStopped = true;
+
+        const detail = (event as any).detail;
+        if (!detail || !detail.updatedDeckData) {
+            console.error('GameManager: DECK_ADJUSTMENT_CONFIRMED event missing updatedDeckData.');
+            return;
+        }
+
+        const { updatedDeckData } = detail;
+        
+        // Update the actual game state with the new deck configuration
+        const playerState = this.gameState.players[PlayerSide.Player];
+        playerState.leftDeck = updatedDeckData.left;
+        playerState.midDeck = updatedDeckData.mid;
+        playerState.rightDeck = updatedDeckData.right;
+
+        // Hide the UI
+        this.hideDeckAdjustmentUIForPlayer();
+        this.stopTimer();
+
+        // Dispatch action to GameFSM to confirm adjustment
+        this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
+        console.log('GameManager: Deck adjustment confirmed and game state updated.', updatedDeckData);
+    }
+
+    private async runCombatAnimations(log: ICombatLog) {
         if (!log) return;
         await new Promise(resolve => setTimeout(resolve, 500));
+
         for (const event of log.events) {
+            // Short pause between events for readability
             if (event.type !== 'damage') await new Promise(resolve => setTimeout(resolve, 300));
+
             switch (event.type) {
                 case 'attack': {
                     const attackerView = this.findCardView(event.attackerId);
@@ -370,47 +376,59 @@ export class GameManager extends Component {
                 }
                 case 'death': {
                     const victimView = this.findCardView(event.targetId);
-                    if (victimView) await new Promise<void>(resolve => victimView.playDieAnimation(resolve));
+                    if (victimView) {
+                         await new Promise<void>(resolve => victimView.playDieAnimation(resolve));
+                    }
                     break;
                 }
                 case 'gameOver': {
                     this.infoLabel.string = `${PlayerSide[event.winner]} Wins!`;
-                    if(this.actionButton) this.actionButton.node.active = false;
+                    this.actionButton.node.active = false;
                     break;
                 }
             }
         }
     }
 
-    private findCardView = (instanceId: number): Card | null => {
+    // --- Helpers ---
+    
+    private findCardView(instanceId: number): Card | null {
         let view = this.playerView.findCardView(instanceId);
         if (view) return view;
         return this.opponentView.findCardView(instanceId);
     }
+    
+    // --- Unchanged methods below ---
 
-    private getCardViewFromPool = (): Node => {
-        if (this.cardViewPool.length > 0) {
-            const cardNode = this.cardViewPool.pop();
-            return cardNode;
+    private onTimerEnd() {
+        console.log('[GameManager] Timer ended. Auto-skipping phase.');
+        this.stopTimer();
+        const phase = this.gameState.phase;
+        if (phase === GamePhase.DeckAdjustment) {
+            this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
+        } else if (phase === GamePhase.Rotation) {
+            this.gameFSM.dispatchAction({ type: 'CONFIRM_ROTATION', payload: { keepInLane: { left: false, mid: false, right: false } } });
         }
-        const cardNode = instantiate(this.cardPrefab);
-        this.node.addChild(cardNode);
-        return cardNode;
     }
 
-    private returnCardViewToPool = (cardNode: Node) => {
-        if (!cardNode) return;
-        cardNode.active = false;
-        this.cardViewPool.push(cardNode);
+    private onActionButtonClick() {
+        if (this.gameState.activePlayer !== PlayerSide.Player) return;
+        this.stopTimer();
+        const phase = this.gameState.phase;
+        if (phase === GamePhase.DeckAdjustment) {
+            this.gameFSM.dispatchAction({ type: 'CONFIRM_ADJUSTMENT' });
+        } else if (phase === GamePhase.Rotation) {
+            this.gameFSM.dispatchAction({ type: 'CONFIRM_ROTATION', payload: { keepInLane: { left: false, mid: false, right: false } } });
+        }
     }
-
-    private startTimer = () => {
+    
+    private startTimer() {
         if (this.timerLabel) this.timerLabel.node.active = true;
         this.turnTimer = this.TURN_TIME_LIMIT;
         this.isTimerRunning = true;
     }
 
-    private stopTimer = () => {
+    private stopTimer() {
         if (this.timerLabel) this.timerLabel.node.active = false;
         this.isTimerRunning = false;
     }

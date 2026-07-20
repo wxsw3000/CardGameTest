@@ -283,7 +283,7 @@
   {
     "__type__": "cc.Node",
     "_name": "Label",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 5
@@ -762,6 +762,10 @@
     },
     "cardPrefab": {
       "__uuid__": "2cace9c9-e05e-4588-9e6d-e0da2d027f44",
+      "__expectedType__": "cc.Prefab"
+    },
+    "cardDeckPrefab": {
+      "__uuid__": "74cd4f91-3ad2-406b-8b3f-e4aaa42ef808",
       "__expectedType__": "cc.Prefab"
     },
     "_id": "02kpN8z95FUYi8L/Y60ot7"
