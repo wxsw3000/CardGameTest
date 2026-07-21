@@ -6,7 +6,7 @@
  *              and forwarding user input to the FSM.
  */
 
-import { _decorator, Component, Node, Button, Label, Prefab, instantiate, isValid, find } from 'cc';
+import { _decorator, Component, Node, Button, Label, Prefab, instantiate, isValid, find, Widget } from 'cc';
 import { Player } from './Player/Player';
 import { Card } from './Card/Card';
 import { Slot } from './Slot/Slot';
@@ -283,6 +283,10 @@ export class GameManager extends Component {
             } else {
                 console.warn("GameManager: 'Canvas' node not found, adding CardDeck to GameManager node. Z-order might be an issue.");
                 this.node.addChild(this.cardDeckInstance); // Fallback
+            }
+            const widget = this.cardDeckInstance.getComponent(Widget);
+            if (widget) {
+                widget.updateAlignment();
             }
             this.cardDeckController = this.cardDeckInstance.getComponent(CardDeckController);
 

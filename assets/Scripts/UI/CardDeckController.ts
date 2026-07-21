@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid, EventTouch, Event, Prefab, Button, instantiate,Sprite } from 'cc';
+import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid, EventTouch, Event, Prefab, Button, instantiate, Sprite, Widget } from 'cc';
 
 import { CardDatabase, IStaticCardData, IDeckData } from '../Engine/Data/CardData';
 import { DeckCardUI } from './DeckCardUI'; // UI component for individual cards in the deck adjustment UI
@@ -39,7 +39,7 @@ export class CardDeckController extends Component {
 
     // Define colors for highlighting
     private _normalLaneColors: Map<Node, Color> = new Map();
-    private _highlightColor: Color = new Color(255, 255, 0, 100); // Yellow with some transparency for highlight
+    private _highlightColor: Color = new Color(255, 215, 90, 220); // Warm golden glow for ink aesthetics
 
     @property(Button)
     confirmButton: Button = null;
@@ -48,26 +48,30 @@ export class CardDeckController extends Component {
     private _cardInstances: Map<number, CardDataInstance> = new Map();
     
     // Internal representation of the current player's decks
-    // This will be updated by drag-and-drop and sent back on confirmation
     private _currentDeckData: IDeckData = {
         left: [],
         mid: [],
         right: []
     };
 
-    // Reference to the GameManager's gameState.cards to get IRuntimeCardData for a given instanceId
-    private _gameStateCards: Map<number, any> = null; // Map<instanceId, IRuntimeCardData>
+    private _gameStateCards: Map<number, any> = null;
 
     onLoad() {
         if (!this.cardPrefab) {
-            console.error('CardDeckController: cardPrefab is not assigned!');
-            return;
+            resources.load('Prefabs/CardPrefab', Prefab, (err, prefab) => {
+                if (!err && prefab) {
+                    this.cardPrefab = prefab;
+                    console.log('CardDeckController: Dynamically loaded CardPrefab fallback.');
+                } else {
+                    console.error('CardDeckController: cardPrefab is not assigned and fallback load failed!', err);
+                }
+            });
         }
 
         this.initLanes();
-        this.setupLaneTouchListeners(); // New call
+        this.setupLaneTouchListeners();
         this.setupEventListeners();
-        this.node.active = false; // Start inactive
+        this.node.active = false;
     }
 
     onDestroy() {
@@ -75,7 +79,6 @@ export class CardDeckController extends Component {
         if (this.confirmButton) {
             this.confirmButton.node.off(Button.EventType.CLICK, this._onConfirmButtonClick, this);
         }
-        // Remove touch listeners
         [this.leftLaneNode, this.midLaneNode, this.rightLaneNode].forEach(laneNode => {
             if (laneNode) {
                 laneNode.off(Node.EventType.TOUCH_START, this.onLaneTouchStart, this);
@@ -89,44 +92,41 @@ export class CardDeckController extends Component {
      * Initializes lane nodes with Layout components if missing.
      */
     private initLanes() {
-        [
-            { node: this.leftLaneNode, sprite: this.leftLaneSprite },
-            { node: this.midLaneNode, sprite: this.midLaneSprite },
-            { node: this.rightLaneNode, sprite: this.rightLaneSprite }
-        ].forEach(lane => {
+        const laneConfigs = [
+            { node: this.leftLaneNode, sprite: this.leftLaneSprite, defaultColor: new Color(30, 60, 95, 220) }, // Distinct Slate Blue
+            { node: this.midLaneNode, sprite: this.midLaneSprite, defaultColor: new Color(95, 75, 30, 220) },  // Distinct Amber Gold
+            { node: this.rightLaneNode, sprite: this.rightLaneSprite, defaultColor: new Color(95, 30, 45, 220) } // Distinct Crimson
+        ];
+
+        laneConfigs.forEach(lane => {
             if (lane.node) {
                 let layout = lane.node.getComponent(Layout);
                 if (!layout) {
                     layout = lane.node.addComponent(Layout);
-                    layout.type = Layout.Type.VERTICAL;
-                    layout.resizeMode = Layout.ResizeMode.CONTAINER; // Adjust container size based on children
-                    layout.spacingY = 5; // Small vertical spacing between cards
-                    layout.paddingTop = 10; // Add some padding
-                    layout.paddingBottom = 10;
-                    console.warn(`CardDeckController: Added missing Layout component to ${lane.node.name}`);
                 }
-                layout.affectedByScale = true;
-                // Store normal color
-                if (lane.sprite) {
-                    this._normalLaneColors.set(lane.node, lane.sprite.color.clone());
-                } else {
-                    console.warn(`CardDeckController: Missing Sprite component on ${lane.node.name} for color storage.`);
+                layout.type = Layout.Type.VERTICAL;
+                layout.resizeMode = Layout.ResizeMode.NONE;
+                layout.spacingY = 12;
+                layout.paddingTop = 50;
+                layout.paddingBottom = 15;
+                layout.affectedByScale = false;
+
+                let sp = lane.sprite || lane.node.getComponent(Sprite);
+                if (!sp) {
+                    sp = lane.node.addComponent(Sprite);
                 }
+                // Enforce distinct lane colors
+                sp.color = lane.defaultColor;
+                this._normalLaneColors.set(lane.node, lane.defaultColor.clone());
             }
         });
     }
 
     /**
-     * Sets up event listeners for lane touches.
+     * Sets up event listeners for lane touches. (Disabled so lane columns stay fixed)
      */
     private setupLaneTouchListeners() {
-        [this.leftLaneNode, this.midLaneNode, this.rightLaneNode].forEach(laneNode => {
-            if (laneNode) {
-                laneNode.on(Node.EventType.TOUCH_START, this.onLaneTouchStart, this);
-                laneNode.on(Node.EventType.TOUCH_END, this.onLaneTouchEnd, this);
-                laneNode.on(Node.EventType.TOUCH_CANCEL, this.onLaneTouchCancel, this);
-            }
-        });
+        // Lanes must stay completely fixed and immovable
     }
 
     /**
@@ -213,6 +213,12 @@ export class CardDeckController extends Component {
      */
     public showDeckAdjustmentUI(deckData: IDeckData, gameStateCards: Map<number, any>) { // gameStateCards should be Map<instanceId, IRuntimeCardData> from GameManager
         this.node.active = true;
+        const rootWidget = this.getComponent(Widget);
+        if (rootWidget) {
+            rootWidget.updateAlignment();
+        }
+        this.node.getComponentsInChildren(Widget).forEach(w => w.updateAlignment());
+
         this.clearLanes();
         this._gameStateCards = gameStateCards; // Store reference to GameManager's card data
 
@@ -313,6 +319,7 @@ export class CardDeckController extends Component {
             }
 
             deckCardUI.init(staticData, cardInstanceId, laneName);
+            deckCardUI.enableDrag = true; // Enable drag only for adjustment UI cards
 
             let laneNode: Node;
             if (laneName === 'left') {
@@ -325,7 +332,7 @@ export class CardDeckController extends Component {
 
             if (laneNode && isValid(laneNode)) {
                 laneNode.addChild(cardNode);
-                cardNode.setScale(0.45, 0.45, 1);
+                cardNode.setScale(1.0, 1.0, 1); // Full 1.0 scale to display card properly!
                 this._cardInstances.set(cardInstanceId, { staticId: staticData.id, instanceId: cardInstanceId, currentLane: laneName, node: cardNode });
             } else {
                 console.error(`CardDeckController: Target lane node ${laneName} is invalid or null.`);
@@ -408,9 +415,20 @@ export class CardDeckController extends Component {
 
             // Re-parent the card node and set its sibling index
             if (cardInstance.node) {
-                cardInstance.node.setParent(targetLaneNode); // Set parent first
-                cardInstance.node.setSiblingIndex(insertionIndex); // Then set sibling index
-                cardInstance.node.setScale(0.45, 0.45, 1);
+                cardInstance.node.setParent(targetLaneNode);
+                cardInstance.node.setSiblingIndex(insertionIndex);
+                cardInstance.node.setScale(1.0, 1.0, 1.0);
+
+                // Smooth magnet drop spring effect: snap automatically to fixed slot position
+                const currentScale = cardInstance.node.scale.clone();
+                cardInstance.node.setScale(1.08, 1.08, 1.0);
+                
+                // Trigger Layout update so target position is recalculated cleanly
+                let layout = targetLaneNode.getComponent(Layout);
+                if (layout) {
+                    layout.updateLayout();
+                }
+
                 console.log(`CardDeckController: Card ${cardInstance.staticId} (ID: ${instanceId}) moved from ${fromLane} to ${targetLane} at index ${insertionIndex}.`);
             } else {
                 console.warn(`CardDeckController: Failed to re-parent card ${instanceId} to ${targetLane}. Node is null.`);

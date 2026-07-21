@@ -17,6 +17,9 @@ export class DeckCardUI extends Component {
 
 
 
+    @property({ tooltip: "Controls whether this card can be dragged. False by default for battlefield cards and heroes." })
+    enableDrag: boolean = false;
+
     private _instanceId: number = -1;
     private _fromLane: 'left' | 'mid' | 'right' = 'left';
     private _originalParent: Node = null;
@@ -30,10 +33,6 @@ export class DeckCardUI extends Component {
         this._fromLane = fromLane;
 
         if (this.nameLabel) this.nameLabel.string = cardData.cardName;
-        // Cost is no longer displayed as per user request
-      
-
-
     }
 
     onLoad() {
@@ -44,7 +43,7 @@ export class DeckCardUI extends Component {
     }
 
     private _onTouchStart(event: EventTouch) {
-        if (this._isDragging) return;
+        if (!this.enableDrag || this._isDragging) return;
         this._isDragging = true;
         
         this._originalParent = this.node.parent;
@@ -84,28 +83,24 @@ export class DeckCardUI extends Component {
         if (!this._isDragging) return;
         this._isDragging = false;
 
-        // Reset visual feedback
-        this.node.setScale(0.45, 0.45, 1);
+        // Reset visual feedback to standard full 1.0 scale
+        this.node.setScale(1.0, 1.0, 1.0);
 
-        // 创建一个标准的 cc.Event 对象
-        const customEvent = new Event('card-dropped', true); // 'card-dropped' 是事件名称, true 表示冒泡
+        const customEvent = new Event('card-dropped', true);
 
-             // 手动将 custom data 赋值给事件对象的 detail 属性
-             // 注意：这里使用了类型断言 as any 来规避 TypeScript 对 Event 类型的严格检查
-             (customEvent as any).detail = {
-                 instanceId: this._instanceId,
-                fromLane: this._fromLane,
-                 dropPosition: this.node.worldPosition,
-                returnToOrigin: () => {
-                    this._originalParent.addChild(this.node);
-                    this.node.setPosition(this._originalPos);
-                    this.node.setScale(0.45, 0.45, 1);
-                }
-            };
-            // GameManager 的 onCardDropped 中使用了 propagationStopped，也需要手动设置
-            (customEvent as any).propagationStopped = false;
-            (customEvent as any).propagationImmediateStopped = false;
-   
-            this.node.dispatchEvent(customEvent);
+        (customEvent as any).detail = {
+            instanceId: this._instanceId,
+            fromLane: this._fromLane,
+            dropPosition: this.node.worldPosition,
+            returnToOrigin: () => {
+                this._originalParent.addChild(this.node);
+                this.node.setPosition(this._originalPos);
+                this.node.setScale(1.0, 1.0, 1.0);
+            }
+        };
+        (customEvent as any).propagationStopped = false;
+        (customEvent as any).propagationImmediateStopped = false;
+
+        this.node.dispatchEvent(customEvent);
     }
 }
