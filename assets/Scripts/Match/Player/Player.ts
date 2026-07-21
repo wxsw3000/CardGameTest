@@ -5,7 +5,7 @@
  *              and its primary role is to update them based on data from the game engine.
  */
 
-import { _decorator, Component, Prefab, Node, Enum, Label } from 'cc';
+import { _decorator, Component, Prefab, Node, Enum, Label, isValid } from 'cc';
 import { Slot } from '../Slot/Slot';
 import { Card } from '../Card/Card';
 import { IPlayerState, IGameState, PlayerSide } from '../../Engine/interfaces';
@@ -34,6 +34,22 @@ export class Player extends Component {
     @property(Label)
     resourceLabel: Label = null;
 
+    onLoad() {
+        this.ensureHeroCardRef();
+    }
+
+    /**
+     * Ensures this.heroCard is populated if it was null or invalid.
+     */
+    private ensureHeroCardRef(): Card | null {
+        if (!this.heroCard || !isValid(this.heroCard.node)) {
+            const allCards = this.getComponentsInChildren(Card);
+            const slotCards = (this.slots || []).map(s => s?.card).filter(c => c != null);
+            this.heroCard = allCards.find(c => !slotCards.includes(c)) || null;
+        }
+        return this.heroCard;
+    }
+
     /**
      * Updates the player's entire view (hero and slots) based on the game state.
      * @param playerState The state of this player from the game engine.
@@ -46,6 +62,9 @@ export class Player extends Component {
         if (this.resourceLabel) {
             this.resourceLabel.string = `资源: ${playerState.resources}`;
         }
+
+        // Ensure hero card reference is auto-discovered if not wired in editor
+        this.ensureHeroCardRef();
 
         // Update the hero's view
         if (this.heroCard) {
@@ -81,6 +100,7 @@ export class Player extends Component {
      * @returns The Card component or null if not found.
      */
     public findCardView(instanceId: number): Card | null {
+        this.ensureHeroCardRef();
         if (this.heroCard && this.heroCard.instanceId === instanceId) {
             return this.heroCard;
         }

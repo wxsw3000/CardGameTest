@@ -2,6 +2,7 @@ import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid,
 
 import { CardDatabase, IStaticCardData, IDeckData } from '../Engine/Data/CardData';
 import { DeckCardUI } from './DeckCardUI'; // UI component for individual cards in the deck adjustment UI
+import { Card } from '../Match/Card/Card';
 
 const { ccclass, property } = _decorator;
 
@@ -75,12 +76,14 @@ export class CardDeckController extends Component {
     }
 
     onDestroy() {
-        this.node.off('card-dropped', this.onCardDropped, this);
-        if (this.confirmButton) {
+        if (this.node && isValid(this.node)) {
+            this.node.off('card-dropped', this.onCardDropped, this);
+        }
+        if (this.confirmButton && isValid(this.confirmButton) && this.confirmButton.node && isValid(this.confirmButton.node)) {
             this.confirmButton.node.off(Button.EventType.CLICK, this._onConfirmButtonClick, this);
         }
         [this.leftLaneNode, this.midLaneNode, this.rightLaneNode].forEach(laneNode => {
-            if (laneNode) {
+            if (laneNode && isValid(laneNode)) {
                 laneNode.off(Node.EventType.TOUCH_START, this.onLaneTouchStart, this);
                 laneNode.off(Node.EventType.TOUCH_END, this.onLaneTouchEnd, this);
                 laneNode.off(Node.EventType.TOUCH_CANCEL, this.onLaneTouchCancel, this);
@@ -133,8 +136,20 @@ export class CardDeckController extends Component {
      * Sets up event listeners for card drops and button clicks.
      */
     private setupEventListeners() {
-        this.node.on('card-dropped', this.onCardDropped, this);
-        if (this.confirmButton) {
+        if (!this.confirmButton || !isValid(this.confirmButton)) {
+            const btnNode = this.node.getChildByName('ConfirmButton');
+            if (btnNode) {
+                this.confirmButton = btnNode.getComponent(Button);
+            }
+            if (!this.confirmButton) {
+                this.confirmButton = this.getComponentInChildren(Button);
+            }
+        }
+
+        if (this.node && isValid(this.node)) {
+            this.node.on('card-dropped', this.onCardDropped, this);
+        }
+        if (this.confirmButton && isValid(this.confirmButton) && this.confirmButton.node && isValid(this.confirmButton.node)) {
             this.confirmButton.node.on(Button.EventType.CLICK, this._onConfirmButtonClick, this);
         }
     }
@@ -320,6 +335,11 @@ export class CardDeckController extends Component {
 
             deckCardUI.init(staticData, cardInstanceId, laneName);
             deckCardUI.enableDrag = true; // Enable drag only for adjustment UI cards
+
+            const cardComp = cardNode.getComponent(Card);
+            if (cardComp) {
+                cardComp.updateView(runtimeCardData, staticData);
+            }
 
             let laneNode: Node;
             if (laneName === 'left') {

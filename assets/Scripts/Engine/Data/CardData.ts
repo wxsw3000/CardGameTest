@@ -32,7 +32,7 @@ export const CardDatabase: { [id: number]: IStaticCardData } = {
     },
     2: {
         id: 2,
-        cardName: "三界靖魔大帝‌岳飞",
+        cardName: "三界靖魔大帝岳飞",
         description: "三十功名尘与土，八千里路云和月",
         hp: 15,
         attack: 5,

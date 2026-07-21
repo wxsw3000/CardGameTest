@@ -47,20 +47,34 @@ export class Card extends Actor {
         this.instanceId = state ? state.instanceId : null;
         this.staticId = staticData.id;
 
+        // Auto-discover descriptionLabel if unassigned
+        if (!this.descriptionLabel) {
+            const descNode = this.node.getChildByName('DescriptionLabel') || this.node.getChildByName('DescLabel');
+            if (descNode) this.descriptionLabel = descNode.getComponent(Label);
+        }
+
         // Update card-specific fields
         if (this.descriptionLabel) {
             this.descriptionLabel.string = staticData.description;
         }
 
-        // Asynchronously load the card's artwork
+        // Asynchronously load the card's artwork with fallback
         if (staticData.spriteFramePath) {
             resources.load(staticData.spriteFramePath, SpriteFrame, (err, spriteFrame) => {
-                if (err) {
-                    console.error(`Failed to load spriteFrame for card ${staticData.cardName} at path: ${staticData.spriteFramePath}`, err);
-                    return;
-                }
-                if (this.visual) {
-                    this.visual.spriteFrame = spriteFrame;
+                if (!err && spriteFrame) {
+                    if (this.visual) {
+                        this.visual.spriteFrame = spriteFrame;
+                    }
+                } else {
+                    // Fallback to base path without /spriteFrame suffix
+                    const basePath = staticData.spriteFramePath.replace(/\/spriteFrame$/, '');
+                    resources.load(basePath, SpriteFrame, (err2, spriteFrame2) => {
+                        if (!err2 && spriteFrame2 && this.visual) {
+                            this.visual.spriteFrame = spriteFrame2;
+                        } else {
+                            console.error(`Failed to load spriteFrame for card ${staticData.cardName} at path: ${staticData.spriteFramePath}`, err || err2);
+                        }
+                    });
                 }
             });
         }

@@ -4,7 +4,7 @@
  *              It handles drag-and-drop interactions.
  */
 
-import { _decorator, Component, Node, EventTouch, Vec3, UITransform, Label, resources, SpriteFrame, Sprite, Event } from 'cc';
+import { _decorator, Component, Node, EventTouch, Vec3, UITransform, Label, resources, SpriteFrame, Sprite, Event, isValid } from 'cc';
 import { IStaticCardData } from '../Engine/Data/CardData'; // Adjusted path for the current project
 
 const { ccclass, property } = _decorator;
@@ -40,6 +40,15 @@ export class DeckCardUI extends Component {
         this.node.on(Node.EventType.TOUCH_MOVE, this._onTouchMove, this);
         this.node.on(Node.EventType.TOUCH_CANCEL, this._onTouchEnd, this); // TOUCH_CANCEL also ends drag
         this.node.on(Node.EventType.TOUCH_END, this._onTouchEnd, this);
+    }
+
+    onDestroy() {
+        if (this.node && isValid(this.node)) {
+            this.node.off(Node.EventType.TOUCH_START, this._onTouchStart, this);
+            this.node.off(Node.EventType.TOUCH_MOVE, this._onTouchMove, this);
+            this.node.off(Node.EventType.TOUCH_CANCEL, this._onTouchEnd, this);
+            this.node.off(Node.EventType.TOUCH_END, this._onTouchEnd, this);
+        }
     }
 
     private _onTouchStart(event: EventTouch) {

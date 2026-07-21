@@ -42,6 +42,40 @@ export class Actor extends Component {
         }
 
         this.node.active = true;
+
+        // Auto-discover child Label / Sprite references if unassigned in editor
+        if (!this.nameLabel) {
+            const nameNode = this.node.getChildByName('NamePlate')?.getChildByName('NameLabel') || 
+                            this.node.getChildByName('NameLabel');
+            if (nameNode) this.nameLabel = nameNode.getComponent(Label);
+            if (!this.nameLabel) this.nameLabel = this.getComponentInChildren(Label);
+        }
+
+        if (!this.hpLabel) {
+            const hpNode = this.node.getChildByName('hpNode');
+            if (hpNode) {
+                const labelNode = hpNode.getChildByName('hpLabel') || hpNode;
+                this.hpLabel = labelNode.getComponent(Label);
+            }
+        }
+
+        if (!this.attackLabel) {
+            const atkNode = this.node.getChildByName('atkNode');
+            if (atkNode) {
+                const labelNode = atkNode.getChildByName('atkLabel') || atkNode;
+                this.attackLabel = labelNode.getComponent(Label);
+            }
+        }
+
+        if (!this.visual) {
+            const visualNode = this.node.getChildByName('Visual');
+            if (visualNode) {
+                this.visual = visualNode.getComponent(Sprite);
+            } else {
+                this.visual = this.getComponent(Sprite);
+            }
+        }
+
         if (this.nameLabel) this.nameLabel.string = staticData.cardName;
 
         if (state) {
