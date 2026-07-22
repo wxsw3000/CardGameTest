@@ -1,13 +1,14 @@
 {
-  "ver": "1.1.50",
+  "ver": "2.0.3",
   "importer": "prefab",
   "imported": true,
-  "uuid": "500c7790-c736-4a2b-b58c-a8d636e9bd81",
+  "uuid": "6a9dc6a1-931d-4da5-b2d3-f0c90250891f",
   "files": [
     ".json"
   ],
   "subMetas": {},
   "userData": {
-    "syncNodeName": "CardDeck"
+    "syncNodeName": "CardDeck",
+    "hasIcon": false
   }
 }

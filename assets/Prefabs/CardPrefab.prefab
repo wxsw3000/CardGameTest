@@ -49,7 +49,9 @@
         "__id__": 4
       }
     ],
-    "_prefab": null,
+    "_prefab": {
+      "__id__": 32
+    },
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -1111,5 +1113,17 @@
     "_underlineHeight": 0,
     "_cacheMode": 0,
     "_id": ""
+  },
+  {
+    "__type__": "cc.PrefabInfo",
+    "root": {
+      "__id__": 1
+    },
+    "asset": {
+      "__id__": 0
+    },
+    "fileId": "2cace9c9-e05e-4588-9e6d-e0da2d027f44",
+    "instance": null,
+    "targetOverrides": null
   }
 ]

@@ -15,7 +15,7 @@ def css_color_to_cc_color(css_color: str) -> List[int]:
     return [255, 255, 255, 255]
 
 # --- Global Configs ---
-CARD_DECK_CONTROLLER_SCRIPT_UUID = "e5951171-0df0-4051-96b9-5c64eac4ffa3"
+CARD_DECK_CONTROLLER_CLASS_NAME = "CardDeckController"
 CARD_PREFAB_UUID = "2cace9c9-e05e-4588-9e6d-e0da2d027f44"
 
 UI_WIDTH = 1280
@@ -356,7 +356,7 @@ class CocosPrefabGenerator:
         # Add CardDeckController script to the root node
         card_deck_controller = self.create_script_component(
             root_node["_id"],
-            script_uuid=CARD_DECK_CONTROLLER_SCRIPT_UUID,
+            script_uuid=CARD_DECK_CONTROLLER_CLASS_NAME,
             properties={
                 "leftLaneNode": None,
                 "midLaneNode": None,

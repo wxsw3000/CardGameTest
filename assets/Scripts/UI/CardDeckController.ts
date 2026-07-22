@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid, EventTouch, Event, Prefab, Button, instantiate, Sprite, Widget } from 'cc';
+import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid, EventTouch, Event, Prefab, Button, instantiate, Sprite, Widget, resources, Graphics, SpriteFrame } from 'cc';
 
 import { CardDatabase, IStaticCardData, IDeckData } from '../Engine/Data/CardData';
 import { DeckCardUI } from './DeckCardUI'; // UI component for individual cards in the deck adjustment UI
@@ -91,14 +91,79 @@ export class CardDeckController extends Component {
         });
     }
 
+    @property({ tooltip: "Set true to use Option 1 (Vector Graphics), false to use Option 2 (Generated UI Textures)" })
+    useVectorGraphics: boolean = false; // Set to false by default to test Option 2
+
+    private _laneVectorStyles: Map<Node, { fillColor: Color; borderColor: Color; highlightColor: Color }> = new Map();
+
     /**
-     * Initializes lane nodes with Layout components if missing.
+     * Draws vector Graphics background and borders for a lane node.
+     */
+    private drawLaneGraphics(node: Node, isHighlighted: boolean = false) {
+        if (!node || !isValid(node)) return;
+        let g = node.getComponent(Graphics);
+        if (!g) {
+            g = node.addComponent(Graphics);
+        }
+        g.clear();
+
+        const style = this._laneVectorStyles.get(node);
+        if (!style) return;
+
+        const uiTrans = node.getComponent(UITransform);
+        const w = uiTrans ? uiTrans.width : 380;
+        const h = uiTrans ? uiTrans.height : 500;
+        const borderRadius = 16;
+        const x = -w / 2;
+        const y = -h / 2;
+
+        // Draw soft dark background fill
+        g.fillColor = style.fillColor;
+        g.roundRect(x, y, w, h, borderRadius);
+        g.fill();
+
+        // Draw crisp vector border
+        g.strokeColor = isHighlighted ? style.highlightColor : style.borderColor;
+        g.lineWidth = isHighlighted ? 4 : 2;
+        g.roundRect(x, y, w, h, borderRadius);
+        g.stroke();
+    }
+
+    /**
+     * Initializes lane nodes with Layout components and Option 2 custom UI textures / Option 1 vector graphics.
      */
     private initLanes() {
         const laneConfigs = [
-            { node: this.leftLaneNode, sprite: this.leftLaneSprite, defaultColor: new Color(30, 60, 95, 220) }, // Distinct Slate Blue
-            { node: this.midLaneNode, sprite: this.midLaneSprite, defaultColor: new Color(95, 75, 30, 220) },  // Distinct Amber Gold
-            { node: this.rightLaneNode, sprite: this.rightLaneSprite, defaultColor: new Color(95, 30, 45, 220) } // Distinct Crimson
+            { 
+                node: this.leftLaneNode, 
+                imgPath: 'lanePng/lane_blue/spriteFrame',
+                basePath: 'lanePng/lane_blue',
+                style: { 
+                    fillColor: new Color(20, 32, 48, 210), 
+                    borderColor: new Color(70, 130, 190, 180),
+                    highlightColor: new Color(255, 215, 90, 255)
+                } 
+            }, 
+            { 
+                node: this.midLaneNode, 
+                imgPath: 'lanePng/lane_gold/spriteFrame',
+                basePath: 'lanePng/lane_gold',
+                style: { 
+                    fillColor: new Color(38, 30, 18, 210), 
+                    borderColor: new Color(212, 175, 55, 180),
+                    highlightColor: new Color(255, 215, 90, 255)
+                } 
+            }, 
+            { 
+                node: this.rightLaneNode, 
+                imgPath: 'lanePng/lane_red/spriteFrame',
+                basePath: 'lanePng/lane_red',
+                style: { 
+                    fillColor: new Color(42, 20, 28, 210), 
+                    borderColor: new Color(200, 70, 90, 180),
+                    highlightColor: new Color(255, 215, 90, 255)
+                } 
+            } 
         ];
 
         laneConfigs.forEach(lane => {
@@ -114,13 +179,34 @@ export class CardDeckController extends Component {
                 layout.paddingBottom = 15;
                 layout.affectedByScale = false;
 
-                let sp = lane.sprite || lane.node.getComponent(Sprite);
-                if (!sp) {
-                    sp = lane.node.addComponent(Sprite);
+                if (this.useVectorGraphics) {
+                    // Option 1: Vector Graphics
+                    let sp = lane.node.getComponent(Sprite);
+                    if (sp) sp.enabled = false;
+
+                    this._laneVectorStyles.set(lane.node, lane.style);
+                    this.drawLaneGraphics(lane.node, false);
+                } else {
+                    // Option 2: Custom Generated UI Texture
+                    let g = lane.node.getComponent(Graphics);
+                    if (g) g.clear();
+
+                    let sp = lane.node.getComponent(Sprite);
+                    if (!sp) {
+                        sp = lane.node.addComponent(Sprite);
+                    }
+                    sp.enabled = true;
+
+                    resources.load(lane.imgPath, SpriteFrame, (err, sf) => {
+                        if (!err && sf) {
+                            if (sp && isValid(sp)) sp.spriteFrame = sf;
+                        } else {
+                            resources.load(lane.basePath, SpriteFrame, (err2, sf2) => {
+                                if (!err2 && sf2 && sp && isValid(sp)) sp.spriteFrame = sf2;
+                            });
+                        }
+                    });
                 }
-                // Enforce distinct lane colors
-                sp.color = lane.defaultColor;
-                this._normalLaneColors.set(lane.node, lane.defaultColor.clone());
             }
         });
     }
@@ -155,69 +241,46 @@ export class CardDeckController extends Component {
     }
 
     /**
-     * Resets all lane colors to their normal state.
+     * Resets all lane colors/vector graphics to their normal state.
      */
     private resetLaneColors() {
         [this.leftLaneNode, this.midLaneNode, this.rightLaneNode].forEach(laneNode => {
-            const normalColor = this._normalLaneColors.get(laneNode);
-            if (laneNode && normalColor) {
-                const sprite = laneNode.getComponent(Sprite);
-                if (sprite) {
-                    sprite.color = normalColor;
-                }
+            if (laneNode) {
+                this.drawLaneGraphics(laneNode, false);
             }
         });
     }
 
     /**
      * Handles TOUCH_START event on a lane node.
-     * Highlights the lane to indicate potential drop target.
+     * Highlights the lane vector border.
      */
     private onLaneTouchStart(event: EventTouch) {
         const targetNode = event.target as Node;
         if (targetNode) {
-            const sprite = targetNode.getComponent(Sprite);
-            if (sprite) {
-                sprite.color = this._highlightColor;
-            }
+            this.drawLaneGraphics(targetNode, true);
         }
     }
 
     /**
      * Handles TOUCH_END event on a lane node.
-     * Resets the lane color to normal.
+     * Resets the lane vector graphics to normal.
      */
     private onLaneTouchEnd(event: EventTouch) {
-        // This will be handled by resetLaneColors called after card dropped or by global reset if needed
-        // For now, let's just make sure it resets
         const targetNode = event.target as Node;
         if (targetNode) {
-            const normalColor = this._normalLaneColors.get(targetNode);
-            if (normalColor) {
-                const sprite = targetNode.getComponent(Sprite);
-                if (sprite) {
-                    sprite.color = normalColor;
-                }
-            }
+            this.drawLaneGraphics(targetNode, false);
         }
     }
 
     /**
      * Handles TOUCH_CANCEL event on a lane node.
-     * Resets the lane color to normal.
+     * Resets the lane vector graphics to normal.
      */
     private onLaneTouchCancel(event: EventTouch) {
-        // This will be handled by resetLaneColors called after card dropped or by global reset if needed
-        // For now, let's just make sure it resets
         const targetNode = event.target as Node;
         if (targetNode) {
-            const normalColor = this._normalLaneColors.get(targetNode);
-            if (normalColor) {
-                const sprite = targetNode.getComponent(Sprite);
-                if (sprite) {
-                    sprite.color = normalColor;
-                }
-            }
+            this.drawLaneGraphics(targetNode, false);
         }
     }
 
