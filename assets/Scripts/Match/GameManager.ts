@@ -17,6 +17,9 @@ import { IGameState, PlayerSide, GamePhase, ICombatLog } from '../Engine/interfa
 import { EventBus, GameEvents } from '../Engine/EventBus';
 import { CardDatabase } from '../Engine/Data/CardData';
 import { CardDeckController } from '../UI/CardDeckController'; // Import CardDeckController
+import { PlatformManager } from '../Framework/Platform/PlatformManager';
+import { StorageManager } from '../Framework/Storage/StorageManager';
+import { NetworkManager } from '../Framework/Network/NetworkManager';
 
 const { ccclass, property } = _decorator;
 
@@ -48,6 +51,16 @@ export class GameManager extends Component {
     // --- Lifecycle Methods ---
 
     start() {
+        const platform = PlatformManager.instance;
+        console.log(`[GameManager] Multi-platform init -> Type: ${platform.getPlatformType()}, IsMiniGame: ${platform.isMiniGame()}, IsNative: ${platform.isNative()}`);
+        platform.setKeepScreenOn(true);
+
+        const storage = StorageManager.instance;
+        storage.setItem('last_login_time', Date.now());
+
+        const network = NetworkManager.instance;
+        console.log(`[GameManager] Network Base URL: ${network.currentConfig.httpBaseUrl}`);
+
         this.setupCardPool();
         this.setupEngine();
         this.setupUI();

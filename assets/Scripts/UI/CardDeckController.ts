@@ -1,8 +1,9 @@
-import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid, EventTouch, Event, Prefab, Button, instantiate, Sprite, Widget, resources, Graphics, SpriteFrame } from 'cc';
+import { _decorator, Component, Node, Vec3, Layout, UITransform, Color, isValid, EventTouch, Event, Prefab, Button, instantiate, Sprite, Widget, resources, Graphics, SpriteFrame, tween, Label, find } from 'cc';
 
 import { CardDatabase, IStaticCardData, IDeckData } from '../Engine/Data/CardData';
 import { DeckCardUI } from './DeckCardUI'; // UI component for individual cards in the deck adjustment UI
 import { Card } from '../Match/Card/Card';
+import { SafeAreaAdapter } from '../Framework/UI/SafeAreaAdapter';
 
 const { ccclass, property } = _decorator;
 
@@ -58,6 +59,13 @@ export class CardDeckController extends Component {
     private _gameStateCards: Map<number, any> = null;
 
     onLoad() {
+        // 自动初始化与绑定安全区适配层（避留小程序胶囊及异形屏刘海）
+        let safeArea = this.getComponent(SafeAreaAdapter);
+        if (!safeArea) {
+            safeArea = this.addComponent(SafeAreaAdapter);
+        }
+        safeArea.applySafeArea();
+
         if (!this.cardPrefab) {
             resources.load('Prefabs/CardPrefab', Prefab, (err, prefab) => {
                 if (!err && prefab) {
@@ -76,8 +84,16 @@ export class CardDeckController extends Component {
     }
 
     onDestroy() {
+        const canvas = find('Canvas') || this.node?.scene?.getChildByName('Canvas');
+        if (canvas && isValid(canvas)) {
+            canvas.off('card-dropped', this.onCardDropped, this);
+            canvas.off('card-drag-move', this.onCardDragMove, this);
+            canvas.off('card-drag-end', this.onCardDragEnd, this);
+        }
         if (this.node && isValid(this.node)) {
             this.node.off('card-dropped', this.onCardDropped, this);
+            this.node.off('card-drag-move', this.onCardDragMove, this);
+            this.node.off('card-drag-end', this.onCardDragEnd, this);
         }
         if (this.confirmButton && isValid(this.confirmButton) && this.confirmButton.node && isValid(this.confirmButton.node)) {
             this.confirmButton.node.off(Button.EventType.CLICK, this._onConfirmButtonClick, this);
@@ -97,34 +113,57 @@ export class CardDeckController extends Component {
     private _laneVectorStyles: Map<Node, { fillColor: Color; borderColor: Color; highlightColor: Color }> = new Map();
 
     /**
-     * Draws vector Graphics background and borders for a lane node.
+     * Draws Graphics border overlay on a dedicated node mounted on this.node for lane highlight.
+     * Prevents lane's Layout component from offsetting the border or cards.
      */
-    private drawLaneGraphics(node: Node, isHighlighted: boolean = false) {
-        if (!node || !isValid(node)) return;
-        let g = node.getComponent(Graphics);
+    private drawLaneGraphics(laneNode: Node, isHighlighted: boolean = false) {
+        if (!laneNode || !isValid(laneNode)) return;
+
+        // Clean up any legacy HighlightBorder child inside laneNode that was affected by Layout
+        const legacyBorder = laneNode.getChildByName('HighlightBorder');
+        if (legacyBorder) {
+            legacyBorder.destroy();
+        }
+
+        const borderName = `HighlightBorder_${laneNode.name}`;
+        let borderNode = this.node.getChildByName(borderName);
+        if (!borderNode) {
+            borderNode = new Node(borderName);
+            this.node.addChild(borderNode);
+        }
+
+        let g = borderNode.getComponent(Graphics);
         if (!g) {
-            g = node.addComponent(Graphics);
+            g = borderNode.addComponent(Graphics);
         }
         g.clear();
 
-        const style = this._laneVectorStyles.get(node);
-        if (!style) return;
+        if (!isHighlighted) {
+            borderNode.active = false;
+            return;
+        }
 
-        const uiTrans = node.getComponent(UITransform);
-        const w = uiTrans ? uiTrans.width : 380;
-        const h = uiTrans ? uiTrans.height : 500;
+        borderNode.active = true;
+
+        // Position borderNode aligned with laneNode's world position
+        const rootUITrans = this.node.getComponent(UITransform);
+        const laneWorldPos = laneNode.worldPosition;
+        if (rootUITrans) {
+            const localPos = rootUITrans.convertToNodeSpaceAR(laneWorldPos);
+            borderNode.setPosition(localPos);
+        } else {
+            borderNode.setPosition(laneNode.position);
+        }
+
+        const uiTrans = laneNode.getComponent(UITransform);
+        const w = uiTrans ? uiTrans.width : 360;
+        const h = uiTrans ? uiTrans.height : 640;
         const borderRadius = 16;
         const x = -w / 2;
         const y = -h / 2;
 
-        // Draw soft dark background fill
-        g.fillColor = style.fillColor;
-        g.roundRect(x, y, w, h, borderRadius);
-        g.fill();
-
-        // Draw crisp vector border
-        g.strokeColor = isHighlighted ? style.highlightColor : style.borderColor;
-        g.lineWidth = isHighlighted ? 4 : 2;
+        g.strokeColor = new Color(255, 215, 90, 255); // Vibrant golden glow
+        g.lineWidth = 6;
         g.roundRect(x, y, w, h, borderRadius);
         g.stroke();
     }
@@ -168,41 +207,46 @@ export class CardDeckController extends Component {
 
         laneConfigs.forEach(lane => {
             if (lane.node) {
+                this._laneVectorStyles.set(lane.node, lane.style);
+
                 let layout = lane.node.getComponent(Layout);
-                if (!layout) {
-                    layout = lane.node.addComponent(Layout);
+                if (layout) {
+                    layout.enabled = false;
                 }
-                layout.type = Layout.Type.VERTICAL;
-                layout.resizeMode = Layout.ResizeMode.NONE;
-                layout.spacingY = 12;
-                layout.paddingTop = 50;
-                layout.paddingBottom = 15;
-                layout.affectedByScale = false;
+                const uiTrans = lane.node.getComponent(UITransform);
+                if (uiTrans) {
+                    uiTrans.setContentSize(360, 640);
+                }
 
                 if (this.useVectorGraphics) {
-                    // Option 1: Vector Graphics
                     let sp = lane.node.getComponent(Sprite);
                     if (sp) sp.enabled = false;
-
-                    this._laneVectorStyles.set(lane.node, lane.style);
                     this.drawLaneGraphics(lane.node, false);
                 } else {
-                    // Option 2: Custom Generated UI Texture
-                    let g = lane.node.getComponent(Graphics);
-                    if (g) g.clear();
-
                     let sp = lane.node.getComponent(Sprite);
                     if (!sp) {
                         sp = lane.node.addComponent(Sprite);
                     }
                     sp.enabled = true;
+                    sp.type = Sprite.Type.SIMPLE;
+                    sp.sizeMode = Sprite.SizeMode.CUSTOM;
 
                     resources.load(lane.imgPath, SpriteFrame, (err, sf) => {
                         if (!err && sf) {
-                            if (sp && isValid(sp)) sp.spriteFrame = sf;
+                            if (sp && isValid(sp)) {
+                                sp.type = Sprite.Type.SIMPLE;
+                                sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                                sp.spriteFrame = sf;
+                                if (uiTrans && isValid(uiTrans)) uiTrans.setContentSize(360, 640);
+                            }
                         } else {
                             resources.load(lane.basePath, SpriteFrame, (err2, sf2) => {
-                                if (!err2 && sf2 && sp && isValid(sp)) sp.spriteFrame = sf2;
+                                if (!err2 && sf2 && sp && isValid(sp)) {
+                                    sp.type = Sprite.Type.SIMPLE;
+                                    sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                                    sp.spriteFrame = sf2;
+                                    if (uiTrans && isValid(uiTrans)) uiTrans.setContentSize(360, 640);
+                                }
                             });
                         }
                     });
@@ -212,14 +256,15 @@ export class CardDeckController extends Component {
     }
 
     /**
-     * Sets up event listeners for lane touches. (Disabled so lane columns stay fixed)
+     * Sets up event listeners for lane touches.
      */
     private setupLaneTouchListeners() {
-        // Lanes must stay completely fixed and immovable
+        // Lanes stay fixed
     }
 
     /**
-     * Sets up event listeners for card drops and button clicks.
+     * Sets up event listeners for card drag moves, drops, and button clicks.
+     * Listens on Canvas root layer to capture events from dragged cards reparented to Canvas.
      */
     private setupEventListeners() {
         if (!this.confirmButton || !isValid(this.confirmButton)) {
@@ -232,12 +277,47 @@ export class CardDeckController extends Component {
             }
         }
 
-        if (this.node && isValid(this.node)) {
+        const canvas = find('Canvas') || this.node?.scene?.getChildByName('Canvas') || this.node;
+
+        if (canvas && isValid(canvas)) {
+            canvas.on('card-dropped', this.onCardDropped, this);
+            canvas.on('card-drag-move', this.onCardDragMove, this);
+            canvas.on('card-drag-end', this.onCardDragEnd, this);
+        }
+        if (this.node && isValid(this.node) && this.node !== canvas) {
             this.node.on('card-dropped', this.onCardDropped, this);
+            this.node.on('card-drag-move', this.onCardDragMove, this);
+            this.node.on('card-drag-end', this.onCardDragEnd, this);
         }
         if (this.confirmButton && isValid(this.confirmButton) && this.confirmButton.node && isValid(this.confirmButton.node)) {
             this.confirmButton.node.on(Button.EventType.CLICK, this._onConfirmButtonClick, this);
         }
+    }
+
+    /**
+     * Handles real-time card drag movement to highlight the hovered lane.
+     */
+    private onCardDragMove(event: Event) {
+        const detail = (event as any).detail;
+        if (!detail || !detail.worldPosition) return;
+
+        const worldPos: Vec3 = detail.worldPosition;
+        const laneNodes = [this.leftLaneNode, this.midLaneNode, this.rightLaneNode];
+
+        laneNodes.forEach(laneNode => {
+            if (laneNode && isValid(laneNode)) {
+                const uiTrans = laneNode.getComponent(UITransform);
+                const isHovered = uiTrans ? uiTrans.getBoundingBoxToWorld().contains(worldPos) : false;
+                this.drawLaneGraphics(laneNode, isHovered);
+            }
+        });
+    }
+
+    /**
+     * Resets lane colors when card dragging finishes.
+     */
+    private onCardDragEnd() {
+        this.resetLaneColors();
     }
 
     /**
@@ -252,9 +332,205 @@ export class CardDeckController extends Component {
     }
 
     /**
-     * Handles TOUCH_START event on a lane node.
-     * Highlights the lane vector border.
+     * Updates top capacity text counters for all lanes (e.g. 左卡道 2/4).
+     * Mounts counter nodes on this.node to prevent disrupting horizontal layout centering of lanes.
      */
+    private updateLaneCounters() {
+        const laneInfo = [
+            { name: '左卡道', node: this.leftLaneNode, count: this._currentDeckData.left.length },
+            { name: '中卡道', node: this.midLaneNode, count: this._currentDeckData.mid.length },
+            { name: '右卡道', node: this.rightLaneNode, count: this._currentDeckData.right.length },
+        ];
+
+        const maxCapacity = 4;
+        const rootUITrans = this.node.getComponent(UITransform);
+
+        laneInfo.forEach(info => {
+            if (!info.node || !isValid(info.node)) return;
+
+            // Clean up any legacy counter node that was added to lane's parent layout container
+            if (info.node.parent && info.node.parent !== this.node) {
+                const legacy = info.node.parent.getChildByName(`LaneCounter_${info.node.name}`);
+                if (legacy) {
+                    legacy.destroy();
+                }
+            }
+
+            const counterName = `LaneCounter_${info.node.name}`;
+            let counterNode = this.node.getChildByName(counterName);
+            let label: Label = null;
+
+            if (!counterNode) {
+                counterNode = new Node(counterName);
+                label = counterNode.addComponent(Label);
+                label.fontSize = 20;
+                label.lineHeight = 24;
+                label.color = new Color(255, 225, 120, 255); // Warm ink gold font
+                this.node.addChild(counterNode);
+            } else {
+                label = counterNode.getComponent(Label);
+            }
+
+            if (label) {
+                label.string = `${info.name} (${info.count}/${maxCapacity})`;
+            }
+
+            // Compute top center position of the lane in world space and convert to local space of this.node
+            const laneWorldPos = info.node.worldPosition;
+            const laneTrans = info.node.getComponent(UITransform);
+            const laneHeight = laneTrans ? laneTrans.height : 640;
+            const targetWorldPos = new Vec3(laneWorldPos.x, laneWorldPos.y + laneHeight / 2 - 28, laneWorldPos.z + 1);
+
+            if (rootUITrans) {
+                const localPos = rootUITrans.convertToNodeSpaceAR(targetWorldPos);
+                counterNode.setPosition(localPos);
+            } else {
+                counterNode.setPosition(targetWorldPos);
+            }
+        });
+    }
+
+    /**
+     * Calculates explicit local (X, Y) position for a card at slot index `slotIndex`.
+     * Guarantees X = 0 (perfect horizontal centering) and fixed slot Y coordinates.
+     */
+    public getSlotLocalPosition(slotIndex: number): Vec3 {
+        const x = 0; // Explicitly 0 on X axis for 100% horizontal centering in lane
+        const startY = 195.25; // Top slot (slot 0) Y coordinate
+        const slotDistance = 163.5; // Fixed slot distance (149.5 card height + 14 spacing)
+        const y = startY - slotIndex * slotDistance;
+
+        return new Vec3(x, y, 0);
+    }
+
+    /**
+     * Explicitly positions all cards in all lanes with fixed scale 0.65 and fixed (X=0, Y) slot coordinates.
+     * Completely bypasses Layout component auto-positioning for 100% deterministic layout control.
+     */
+    private adjustLaneLayouts() {
+        const lanes: Array<{ key: 'left' | 'mid' | 'right'; node: Node }> = [
+            { key: 'left', node: this.leftLaneNode },
+            { key: 'mid', node: this.midLaneNode },
+            { key: 'right', node: this.rightLaneNode }
+        ];
+
+        lanes.forEach(laneInfo => {
+            if (!laneInfo.node || !isValid(laneInfo.node)) return;
+
+            // Turn off automatic Cocos Layout component to prevent X/Y layout shifts
+            const layout = laneInfo.node.getComponent(Layout);
+            if (layout) {
+                layout.enabled = false;
+            }
+
+            const deckCardIds = this._currentDeckData[laneInfo.key] || [];
+
+            deckCardIds.forEach((cardInstanceId, slotIndex) => {
+                const cardInst = this._cardInstances.get(cardInstanceId);
+                if (cardInst && cardInst.node && isValid(cardInst.node)) {
+                    if (cardInst.node.parent !== laneInfo.node) {
+                        cardInst.node.setParent(laneInfo.node);
+                    }
+                    cardInst.node.setSiblingIndex(slotIndex);
+
+                    // Fixed X=0, fixed Y slot coordinate, fixed 0.65 scale
+                    const explicitPos = this.getSlotLocalPosition(slotIndex);
+                    cardInst.node.setPosition(explicitPos);
+                    cardInst.node.setScale(0.65, 0.65, 1.0);
+                }
+            });
+
+            // Also check for any CardDragPlaceholder node in lane and position it explicitly
+            const placeholder = laneInfo.node.getChildByName('CardDragPlaceholder');
+            if (placeholder && isValid(placeholder)) {
+                const placeholderIndex = placeholder.getSiblingIndex();
+                const placeholderPos = this.getSlotLocalPosition(placeholderIndex);
+                placeholder.setPosition(placeholderPos);
+                placeholder.setScale(0.65, 0.65, 1.0);
+            }
+        });
+    }
+
+    /**
+     * Validates the current deck configuration against game rules.
+     */
+    public validateDeckState(): { isValid: boolean; reason: string } {
+        const leftCount = this._currentDeckData.left.length;
+        const midCount = this._currentDeckData.mid.length;
+        const rightCount = this._currentDeckData.right.length;
+        const totalCount = leftCount + midCount + rightCount;
+        const maxLaneCapacity = 4;
+
+        if (totalCount === 0) {
+            return { isValid: false, reason: '阵容不能为空，请布置卡牌' };
+        }
+
+        if (leftCount > maxLaneCapacity) {
+            return { isValid: false, reason: `左卡道卡牌超出上限 (${leftCount}/${maxLaneCapacity})` };
+        }
+        if (midCount > maxLaneCapacity) {
+            return { isValid: false, reason: `中卡道卡牌超出上限 (${midCount}/${maxLaneCapacity})` };
+        }
+        if (rightCount > maxLaneCapacity) {
+            return { isValid: false, reason: `右卡道卡牌超出上限 (${rightCount}/${maxLaneCapacity})` };
+        }
+
+        return { isValid: true, reason: '布阵准备就绪' };
+    }
+
+    /**
+     * Updates confirm button interactability and visual prompt.
+     */
+    private updateConfirmButtonState() {
+        if (!this.confirmButton || !isValid(this.confirmButton)) return;
+
+        const validation = this.validateDeckState();
+        this.confirmButton.interactable = validation.isValid;
+
+        const btnNode = this.confirmButton.node;
+        if (!btnNode || !isValid(btnNode)) return;
+
+        // Button background opacity/color feedback
+        const btnSprite = btnNode.getComponent(Sprite);
+        if (btnSprite) {
+            btnSprite.color = validation.isValid ? new Color(255, 255, 255, 255) : new Color(130, 130, 140, 180);
+        }
+
+        // Button label opacity feedback
+        const btnLabel = btnNode.getComponentInChildren(Label);
+        if (btnLabel) {
+            btnLabel.color = validation.isValid ? new Color(255, 245, 220, 255) : new Color(160, 160, 170, 180);
+        }
+
+        // Tip label below ConfirmButton
+        const tipName = 'ConfirmTipLabel';
+        let tipNode = this.node.getChildByName(tipName);
+        let tipLabel: Label = null;
+
+        if (!tipNode) {
+            tipNode = new Node(tipName);
+            tipLabel = tipNode.addComponent(Label);
+            tipLabel.fontSize = 16;
+            tipLabel.lineHeight = 20;
+            this.node.addChild(tipNode);
+        } else {
+            tipLabel = tipNode.getComponent(Label);
+        }
+
+        if (tipLabel) {
+            if (!validation.isValid) {
+                tipLabel.string = validation.reason;
+                tipLabel.color = new Color(255, 110, 110, 240); // Alert red
+            } else {
+                tipLabel.string = '✓ ' + validation.reason;
+                tipLabel.color = new Color(130, 220, 140, 220); // Soft green
+            }
+
+            const btnPos = btnNode.position;
+            tipNode.setPosition(btnPos.x, btnPos.y - 36, btnPos.z + 1);
+        }
+    }
+
     private onLaneTouchStart(event: EventTouch) {
         const targetNode = event.target as Node;
         if (targetNode) {
@@ -262,10 +538,6 @@ export class CardDeckController extends Component {
         }
     }
 
-    /**
-     * Handles TOUCH_END event on a lane node.
-     * Resets the lane vector graphics to normal.
-     */
     private onLaneTouchEnd(event: EventTouch) {
         const targetNode = event.target as Node;
         if (targetNode) {
@@ -273,10 +545,6 @@ export class CardDeckController extends Component {
         }
     }
 
-    /**
-     * Handles TOUCH_CANCEL event on a lane node.
-     * Resets the lane vector graphics to normal.
-     */
     private onLaneTouchCancel(event: EventTouch) {
         const targetNode = event.target as Node;
         if (targetNode) {
@@ -286,10 +554,8 @@ export class CardDeckController extends Component {
 
     /**
      * Shows the Deck Adjustment UI and populates it with the provided deck data.
-     * @param deckData The current deck configuration from the game state (instanceIds).
-     * @param gameStateCards A map of instanceId to IRuntimeCardData for all cards in the game.
      */
-    public showDeckAdjustmentUI(deckData: IDeckData, gameStateCards: Map<number, any>) { // gameStateCards should be Map<instanceId, IRuntimeCardData> from GameManager
+    public showDeckAdjustmentUI(deckData: IDeckData, gameStateCards: Map<number, any>) {
         this.node.active = true;
         const rootWidget = this.getComponent(Widget);
         if (rootWidget) {
@@ -298,15 +564,18 @@ export class CardDeckController extends Component {
         this.node.getComponentsInChildren(Widget).forEach(w => w.updateAlignment());
 
         this.clearLanes();
-        this._gameStateCards = gameStateCards; // Store reference to GameManager's card data
+        this._gameStateCards = gameStateCards;
 
-        this._currentDeckData = { // Clone the deck data to work on
+        this._currentDeckData = {
             left: [...deckData.left],
             mid: [...deckData.mid],
             right: [...deckData.right]
         };
 
         this._populateLanes();
+        this.adjustLaneLayouts();
+        this.updateLaneCounters();
+        this.updateConfirmButtonState();
     }
 
     /**
@@ -315,8 +584,8 @@ export class CardDeckController extends Component {
     public hideDeckAdjustmentUI() {
         this.node.active = false;
         this.clearLanes();
-        this._gameStateCards = null; // Clear reference
-        this.resetLaneColors(); // Ensure colors are reset when hiding the UI
+        this._gameStateCards = null;
+        this.resetLaneColors();
     }
 
     /**
@@ -339,34 +608,24 @@ export class CardDeckController extends Component {
 
     /**
      * Determines the visual insertion index for a dropped card within a lane.
-     * @param laneNode The lane node where the card is being dropped.
-     * @param dropPosition The world position where the card was dropped.
-     * @returns The insertion index (0-based).
      */
     private getInsertionIndex(laneNode: Node, dropPosition: Vec3): number {
         const laneChildren = laneNode.children;
-        // Assuming vertical layout, top to bottom.
-        // If dropPosition.y is higher, it should be an earlier index.
         for (let i = 0; i < laneChildren.length; i++) {
             const child = laneChildren[i];
             const uiTransform = child.getComponent(UITransform);
             if (uiTransform) {
-                // Get the center Y position of the child in world coordinates
                 const childWorldPos = child.worldPosition;
-                // For a vertical layout, we compare the dropPosition Y with the card's center Y
-                // Or with the top/bottom edges, depending on desired precision.
-                // Let's use the center for simplicity.
-                if (dropPosition.y > childWorldPos.y) { // Dropped above this card
+                if (dropPosition.y > childWorldPos.y) {
                     return i;
                 }
             }
         }
-        return laneChildren.length; // Dropped below all existing cards
+        return laneChildren.length;
     }
 
     /**
      * Populates the lanes with cards based on the internal _currentDeckData.
-     * Uses _gameStateCards to retrieve static card data.
      */
     private _populateLanes() {
         if (!this._gameStateCards) {
@@ -380,7 +639,7 @@ export class CardDeckController extends Component {
                 console.warn(`CardDeckController: Runtime card data for instance ID ${cardInstanceId} is missing or has no staticId.`);
                 return;
             }
-            const staticData = CardDatabase[runtimeCardData.staticId]; // Use staticId from runtime data to get static info
+            const staticData = CardDatabase[runtimeCardData.staticId];
             if (!staticData) {
                 console.warn(`CardDeckController: Static card data for static ID ${runtimeCardData.staticId} not found.`);
                 return;
@@ -397,7 +656,7 @@ export class CardDeckController extends Component {
             }
 
             deckCardUI.init(staticData, cardInstanceId, laneName);
-            deckCardUI.enableDrag = true; // Enable drag only for adjustment UI cards
+            deckCardUI.enableDrag = true;
 
             const cardComp = cardNode.getComponent(Card);
             if (cardComp) {
@@ -415,7 +674,7 @@ export class CardDeckController extends Component {
 
             if (laneNode && isValid(laneNode)) {
                 laneNode.addChild(cardNode);
-                cardNode.setScale(1.0, 1.0, 1); // Full 1.0 scale to display card properly!
+                cardNode.setScale(0.65, 0.65, 1.0);
                 this._cardInstances.set(cardInstanceId, { staticId: staticData.id, instanceId: cardInstanceId, currentLane: laneName, node: cardNode });
             } else {
                 console.error(`CardDeckController: Target lane node ${laneName} is invalid or null.`);
@@ -423,43 +682,45 @@ export class CardDeckController extends Component {
             }
         };
 
-        // Populate Left Lane
         this._currentDeckData.left.forEach(cardId => addCard(cardId, 'left'));
-        // Populate Mid Lane
         this._currentDeckData.mid.forEach(cardId => addCard(cardId, 'mid'));
-        // Populate Right Lane
         this._currentDeckData.right.forEach(cardId => addCard(cardId, 'right'));
 
+        this.adjustLaneLayouts();
+        this.adjustLaneLayouts();
+        this.updateLaneCounters();
+        this.updateConfirmButtonState();
         console.log('CardDeckController: Lanes populated with dynamic data.');
     }
 
     /**
      * Handles the 'card-dropped' event from a DeckCardUI component.
-     * @param event The custom event detail contains instanceId, fromLane, dropPosition, and returnToOrigin callback.
+     * Step 3:
+     * 1. If released outside other lanes -> return to original parent & restore original position.
+     * 2. If released over a different lane -> place at top (index 0) of target lane, target cards shift down, origin lane cards below shift up 1 spot.
      */
     private onCardDropped(event: EventTouch) {
-        // Stop propagation to prevent GameManager's default actionButton handling if any
         event.propagationStopped = true;
 
         const detail = (event as any).detail; 
         if (!detail) {
-            console.error('CardDeckController: card-dropped event missing detail.');
+            this.resetLaneColors();
             return;
         }
 
-        const { instanceId, fromLane, dropPosition, returnToOrigin } = detail;
+        const { instanceId, fromLane, dropPosition, originalParent, originalPos, originalSiblingIndex } = detail;
         const cardInstance = this._cardInstances.get(instanceId);
 
-        if (!cardInstance) {
-            console.warn(`CardDeckController: Dropped card with instance ID ${instanceId} not found in _cardInstances.`);
-            returnToOrigin();
+        if (!cardInstance || !cardInstance.node || !isValid(cardInstance.node)) {
+            this.resetLaneColors();
             return;
         }
+
+        const fromLaneNode = (fromLane === 'left' ? this.leftLaneNode : fromLane === 'mid' ? this.midLaneNode : this.rightLaneNode);
 
         let targetLane: 'left' | 'mid' | 'right' | null = null;
         let targetLaneNode: Node | null = null;
 
-        // Determine which lane the card was dropped into
         if (this.leftLaneNode && this.leftLaneNode.getComponent(UITransform)?.getBoundingBoxToWorld().contains(dropPosition)) {
             targetLane = 'left';
             targetLaneNode = this.leftLaneNode;
@@ -471,70 +732,70 @@ export class CardDeckController extends Component {
             targetLaneNode = this.rightLaneNode;
         }
 
-        // --- Logic for sequential arrangement ---
-        if (targetLane && targetLaneNode) { // Dropped into a valid lane
-            // Determine insertion index based on drop position
-            const insertionIndex = this.getInsertionIndex(targetLaneNode, dropPosition);
-
-            // Update internal data model
-            if (fromLane === targetLane) {
-                // Moving within the same lane
-                const currentCards = this._currentDeckData[fromLane];
-                const oldIndex = currentCards.indexOf(instanceId);
-                if (oldIndex !== -1) {
-                    currentCards.splice(oldIndex, 1); // Remove from old position
-                    currentCards.splice(insertionIndex, 0, instanceId); // Insert into new position
+        // Clean up any drag placeholders across all lanes to trigger automatic vertical collapse in origin lane
+        [this.leftLaneNode, this.midLaneNode, this.rightLaneNode].forEach(laneNode => {
+            if (laneNode && isValid(laneNode)) {
+                const placeholder = laneNode.getChildByName('CardDragPlaceholder');
+                if (placeholder) {
+                    placeholder.removeFromParent();
+                    placeholder.destroy();
                 }
-            } else {
-                // Moving to a different lane
-                // Remove from old lane's internal representation
-                this._currentDeckData[fromLane] = this._currentDeckData[fromLane].filter(id => id !== instanceId);
-                // Add to new lane's internal representation at specific index
-                this._currentDeckData[targetLane].splice(insertionIndex, 0, instanceId);
             }
-            
-            // Update card instance's currentLane
+        });
+
+        if (targetLane && targetLaneNode && targetLane !== fromLane) {
+            // Rule 2: Released over a DIFFERENT lane -> Place at index 0 (1st card position) of target lane.
+            // Target cards shift down automatically. Origin cards below shift UP by 1 spot automatically.
+            this._currentDeckData[fromLane] = this._currentDeckData[fromLane].filter(id => id !== instanceId);
+            this._currentDeckData[targetLane] = [instanceId, ...this._currentDeckData[targetLane].filter(id => id !== instanceId)];
             cardInstance.currentLane = targetLane;
 
-            // Re-parent the card node and set its sibling index
-            if (cardInstance.node) {
-                cardInstance.node.setParent(targetLaneNode);
-                cardInstance.node.setSiblingIndex(insertionIndex);
-                cardInstance.node.setScale(1.0, 1.0, 1.0);
-
-                // Smooth magnet drop spring effect: snap automatically to fixed slot position
-                const currentScale = cardInstance.node.scale.clone();
-                cardInstance.node.setScale(1.08, 1.08, 1.0);
-                
-                // Trigger Layout update so target position is recalculated cleanly
-                let layout = targetLaneNode.getComponent(Layout);
-                if (layout) {
-                    layout.updateLayout();
-                }
-
-                console.log(`CardDeckController: Card ${cardInstance.staticId} (ID: ${instanceId}) moved from ${fromLane} to ${targetLane} at index ${insertionIndex}.`);
-            } else {
-                console.warn(`CardDeckController: Failed to re-parent card ${instanceId} to ${targetLane}. Node is null.`);
-                returnToOrigin(); // Something went wrong, return it
+            const deckCardUI = cardInstance.node?.getComponent(DeckCardUI);
+            if (deckCardUI) {
+                deckCardUI.fromLane = targetLane;
             }
+
+            cardInstance.node.setParent(targetLaneNode);
+            cardInstance.node.setSiblingIndex(0); // Insert at 1st card position
+            cardInstance.node.setScale(0.65, 0.65, 1.0);
+
+            console.log(`CardDeckController Step 3: Card ${cardInstance.staticId} moved from ${fromLane} to ${targetLane} at 1st card position.`);
         } else {
-            // Dropped outside any valid lane, return to origin
-            console.log(`CardDeckController: Card ${cardInstance.staticId} (ID: ${instanceId}) dropped outside valid area. Returning to origin.`);
-            returnToOrigin();
+            // Rule 1: Released outside other lanes -> Return to original parent & restore original position and sibling index
+            const returnParent = (originalParent && isValid(originalParent)) ? originalParent : fromLaneNode;
+            if (returnParent && isValid(returnParent)) {
+                cardInstance.node.setParent(returnParent);
+                if (originalSiblingIndex !== undefined) {
+                    cardInstance.node.setSiblingIndex(originalSiblingIndex);
+                }
+                if (originalPos) {
+                    cardInstance.node.setPosition(originalPos);
+                }
+                cardInstance.node.setScale(0.65, 0.65, 1.0);
+            }
+            console.log(`CardDeckController Step 3: Card ${cardInstance.staticId} returned to origin lane ${fromLane} at original position.`);
         }
-        this.resetLaneColors(); // Ensure colors are reset after drop attempt
+
+        this.adjustLaneLayouts();
+        this.updateLaneCounters();
+        this.updateConfirmButtonState();
+        this.resetLaneColors();
     }
 
     /**
      * Handles the click event for the Confirm button.
-     * Emits a custom event with the updated deck configuration.
      */
     private _onConfirmButtonClick() {
-        // Emit a custom event that GameManager can listen to
-        const confirmEvent = new Event('DECK_ADJUSTMENT_CONFIRMED', true); // Bubbles up
+        const validation = this.validateDeckState();
+        if (!validation.isValid) {
+            console.warn('CardDeckController: Cannot confirm deck adjustment - ', validation.reason);
+            this.updateConfirmButtonState();
+            return;
+        }
+
+        const confirmEvent = new Event('DECK_ADJUSTMENT_CONFIRMED', true);
         (confirmEvent as any).detail = {
             updatedDeckData: this._currentDeckData
-            // Optionally, include resource costs if calculated here
         };
         this.node.dispatchEvent(confirmEvent);
         console.log('CardDeckController: Deck adjustment confirmed.', this._currentDeckData);
