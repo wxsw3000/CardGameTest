@@ -113,24 +113,24 @@ export class CardDeckController extends Component {
     private _laneVectorStyles: Map<Node, { fillColor: Color; borderColor: Color; highlightColor: Color }> = new Map();
 
     /**
-     * Draws Graphics border overlay on a dedicated node mounted on this.node for lane highlight.
-     * Prevents lane's Layout component from offsetting the border or cards.
+     * Directly draws Canvas (cc.Graphics) vector background and highlight border for a lane.
      */
     private drawLaneGraphics(laneNode: Node, isHighlighted: boolean = false) {
         if (!laneNode || !isValid(laneNode)) return;
 
-        // Clean up any legacy HighlightBorder child inside laneNode that was affected by Layout
+        // Clean up legacy HighlightBorder
         const legacyBorder = laneNode.getChildByName('HighlightBorder');
-        if (legacyBorder) {
-            legacyBorder.destroy();
-        }
+        if (legacyBorder) legacyBorder.destroy();
 
         const borderName = `HighlightBorder_${laneNode.name}`;
         let borderNode = this.node.getChildByName(borderName);
         if (!borderNode) {
             borderNode = new Node(borderName);
             this.node.addChild(borderNode);
+            borderNode.setSiblingIndex(0); // Render behind card instances
         }
+
+        borderNode.active = true;
 
         let g = borderNode.getComponent(Graphics);
         if (!g) {
@@ -138,14 +138,7 @@ export class CardDeckController extends Component {
         }
         g.clear();
 
-        if (!isHighlighted) {
-            borderNode.active = false;
-            return;
-        }
-
-        borderNode.active = true;
-
-        // Position borderNode aligned with laneNode's world position
+        // Align borderNode with laneNode's position
         const rootUITrans = this.node.getComponent(UITransform);
         const laneWorldPos = laneNode.worldPosition;
         if (rootUITrans) {
@@ -156,14 +149,31 @@ export class CardDeckController extends Component {
         }
 
         const uiTrans = laneNode.getComponent(UITransform);
-        const w = uiTrans ? uiTrans.width : 360;
-        const h = uiTrans ? uiTrans.height : 640;
-        const borderRadius = 16;
+        const w = uiTrans ? uiTrans.width : 180;
+        const h = uiTrans ? uiTrans.height : 1160;
+        const borderRadius = 14;
         const x = -w / 2;
         const y = -h / 2;
 
-        g.strokeColor = new Color(255, 215, 90, 255); // Vibrant golden glow
-        g.lineWidth = 6;
+        const style = this._laneVectorStyles.get(laneNode) || {
+            fillColor: new Color(20, 32, 48, 220),
+            borderColor: new Color(70, 130, 190, 180),
+            highlightColor: new Color(255, 215, 90, 255)
+        };
+
+        // 1. Fill solid vector background (Canvas Graphics)
+        g.fillColor = style.fillColor;
+        g.roundRect(x, y, w, h, borderRadius);
+        g.fill();
+
+        // 2. Stroke vector border
+        if (isHighlighted) {
+            g.strokeColor = style.highlightColor;
+            g.lineWidth = 4;
+        } else {
+            g.strokeColor = style.borderColor;
+            g.lineWidth = 2;
+        }
         g.roundRect(x, y, w, h, borderRadius);
         g.stroke();
     }
@@ -175,31 +185,25 @@ export class CardDeckController extends Component {
         const laneConfigs = [
             { 
                 node: this.leftLaneNode, 
-                imgPath: 'lanePng/lane_blue/spriteFrame',
-                basePath: 'lanePng/lane_blue',
                 style: { 
-                    fillColor: new Color(20, 32, 48, 210), 
-                    borderColor: new Color(70, 130, 190, 180),
+                    fillColor: new Color(18, 30, 48, 225), 
+                    borderColor: new Color(56, 189, 248, 200),
                     highlightColor: new Color(255, 215, 90, 255)
                 } 
             }, 
             { 
                 node: this.midLaneNode, 
-                imgPath: 'lanePng/lane_gold/spriteFrame',
-                basePath: 'lanePng/lane_gold',
                 style: { 
-                    fillColor: new Color(38, 30, 18, 210), 
-                    borderColor: new Color(212, 175, 55, 180),
+                    fillColor: new Color(36, 28, 14, 225), 
+                    borderColor: new Color(251, 191, 36, 200),
                     highlightColor: new Color(255, 215, 90, 255)
                 } 
             }, 
             { 
                 node: this.rightLaneNode, 
-                imgPath: 'lanePng/lane_red/spriteFrame',
-                basePath: 'lanePng/lane_red',
                 style: { 
-                    fillColor: new Color(42, 20, 28, 210), 
-                    borderColor: new Color(200, 70, 90, 180),
+                    fillColor: new Color(40, 18, 24, 225), 
+                    borderColor: new Color(244, 63, 94, 200),
                     highlightColor: new Color(255, 215, 90, 255)
                 } 
             } 
@@ -215,42 +219,14 @@ export class CardDeckController extends Component {
                 }
                 const uiTrans = lane.node.getComponent(UITransform);
                 if (uiTrans) {
-                    uiTrans.setContentSize(360, 640);
+                    uiTrans.setContentSize(180, 1160);
                 }
 
-                if (this.useVectorGraphics) {
-                    let sp = lane.node.getComponent(Sprite);
-                    if (sp) sp.enabled = false;
-                    this.drawLaneGraphics(lane.node, false);
-                } else {
-                    let sp = lane.node.getComponent(Sprite);
-                    if (!sp) {
-                        sp = lane.node.addComponent(Sprite);
-                    }
-                    sp.enabled = true;
-                    sp.type = Sprite.Type.SIMPLE;
-                    sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                // 禁用图像 Sprite 组件，直接使用 Canvas Graphics 动态绘制卡道背景
+                let sp = lane.node.getComponent(Sprite);
+                if (sp) sp.enabled = false;
 
-                    resources.load(lane.imgPath, SpriteFrame, (err, sf) => {
-                        if (!err && sf) {
-                            if (sp && isValid(sp)) {
-                                sp.type = Sprite.Type.SIMPLE;
-                                sp.sizeMode = Sprite.SizeMode.CUSTOM;
-                                sp.spriteFrame = sf;
-                                if (uiTrans && isValid(uiTrans)) uiTrans.setContentSize(360, 640);
-                            }
-                        } else {
-                            resources.load(lane.basePath, SpriteFrame, (err2, sf2) => {
-                                if (!err2 && sf2 && sp && isValid(sp)) {
-                                    sp.type = Sprite.Type.SIMPLE;
-                                    sp.sizeMode = Sprite.SizeMode.CUSTOM;
-                                    sp.spriteFrame = sf2;
-                                    if (uiTrans && isValid(uiTrans)) uiTrans.setContentSize(360, 640);
-                                }
-                            });
-                        }
-                    });
-                }
+                this.drawLaneGraphics(lane.node, false);
             }
         });
     }
@@ -396,8 +372,8 @@ export class CardDeckController extends Component {
      */
     public getSlotLocalPosition(slotIndex: number): Vec3 {
         const x = 0; // Explicitly 0 on X axis for 100% horizontal centering in lane
-        const startY = 195.25; // Top slot (slot 0) Y coordinate
-        const slotDistance = 163.5; // Fixed slot distance (149.5 card height + 14 spacing)
+        const startY = 475.25; // Top slot (slot 0) Y coordinate for 1160px height lane
+        const slotDistance = 164.5; // Fixed slot distance (149.5 card height + 15 spacing)
         const y = startY - slotIndex * slotDistance;
 
         return new Vec3(x, y, 0);

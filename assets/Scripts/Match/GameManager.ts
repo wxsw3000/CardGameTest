@@ -6,7 +6,7 @@
  *              and forwarding user input to the FSM.
  */
 
-import { _decorator, Component, Node, Button, Label, Prefab, instantiate, isValid, find, Widget } from 'cc';
+import { _decorator, Component, Node, Button, Label, Prefab, instantiate, isValid, find, Widget, view, Vec3 } from 'cc';
 import { Player } from './Player/Player';
 import { Card } from './Card/Card';
 import { Slot } from './Slot/Slot';
@@ -49,6 +49,37 @@ export class GameManager extends Component {
     private cardDeckController: CardDeckController = null; // Controller component of the CardDeck instance
 
     // --- Lifecycle Methods ---
+
+    onLoad() {
+        this.applyGlobalCanvasScale();
+        view.on('canvas-resize', this.applyGlobalCanvasScale, this);
+    }
+
+    onDestroy() {
+        view.off('canvas-resize', this.applyGlobalCanvasScale, this);
+    }
+
+    /**
+     * 根据设备物理屏幕宽高比，直接给根节点 Canvas 施加全局等比例自适应缩放。
+     */
+    private applyGlobalCanvasScale() {
+        const canvas = find('Canvas');
+        if (!canvas) return;
+
+        const frameSize = view.getFrameSize();
+        if (!frameSize || frameSize.height <= 0 || frameSize.width <= 0) return;
+
+        const deviceAspect = frameSize.width / frameSize.height;
+        const designAspect = 750 / 1334;
+
+        if (deviceAspect < designAspect) {
+            const scale = deviceAspect / designAspect;
+            canvas.setScale(new Vec3(scale, scale, 1.0));
+            console.log(`[GameManager] 全局 Canvas 根节点应用等比例自适应缩放: scale=${scale.toFixed(3)}`);
+        } else {
+            canvas.setScale(new Vec3(1.0, 1.0, 1.0));
+        }
+    }
 
     start() {
         const platform = PlatformManager.instance;

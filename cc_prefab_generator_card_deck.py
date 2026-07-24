@@ -433,8 +433,8 @@ class CocosPrefabGenerator:
             lanes_container["_id"],
             layout_type=1, # HORIZONTAL
             resize_mode=0, # NONE
-            spacing_x=16,
-            padding_left=20, padding_right=20,
+            spacing_x=15,
+            padding_left=10, padding_right=10,
             horizontal_direction=0
         )
         lanes_container["_components"].append({"__tmp_id__": lanes_layout["_id"]})
@@ -442,7 +442,7 @@ class CocosPrefabGenerator:
         lanes_widget = self.create_widget(
             lanes_container["_id"],
             align_flags=15, # TOP|BOTTOM|LEFT|RIGHT stretch
-            left=30, right=30, top=95, bottom=95,
+            left=90, right=90, top=85, bottom=85,
             align_mode=2
         )
         lanes_container["_components"].append({"__tmp_id__": lanes_widget["_id"]})
@@ -455,8 +455,8 @@ class CocosPrefabGenerator:
             {"name": "RightLane", "title": "右路战场", "color": RIGHT_LANE_COLOR, "badge": "#F43F5E"}
         ]
         
-        lane_width = 370
-        lane_height = UI_HEIGHT - 200
+        lane_width = 180
+        lane_height = 1160
 
         lane_sprites = {}
         for i, config in enumerate(lane_configs):
